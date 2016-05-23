@@ -52,7 +52,7 @@ plugins=(git brew npm)
 source $ZSH/oh-my-zsh.sh
 
 # Base 16 shell
-BASE16_SHELL="$HOME/Documents/ProgrammingFiles/base16-shell/base16-eighties.dark.sh"
+BASE16_SHELL="$HOME/Documents/ProgrammingFiles/base16-shell/base16-solarized.dark.sh"
 [[ -s $BASE16_SHELL ]] && source $BASE16_SHELL
 
 # User configuration
@@ -72,7 +72,7 @@ export PYTHONPATH=~/Projects/PeachPy:$PYTHONPATH
 # fi
 
 # Compilation flags
-export ARCHFLAGS="-arch x86_64"
+# export ARCHFLAGS="-arch x86_64"
 
 # ssh
 # export SSH_KEY_PATH="~/.ssh/dsa_id"

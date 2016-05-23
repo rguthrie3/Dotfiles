@@ -13,6 +13,7 @@ bufexplorer https://github.com/corntrace/bufexplorer
 ctrlp.vim https://github.com/kien/ctrlp.vim
 goyo.vim https://github.com/junegunn/goyo.vim
 LaTeX-Box https://github.com/vim-scripts/LaTeX-Box
+mru https://github.com/vim-scripts/mru.vim
 neomake https://github.com/benekastah/neomake
 nerdtree https://github.com/scrooloose/nerdtree
 open_file_under_cursor.vim https://github.com/amix/open_file_under_cursor.vim
@@ -21,6 +22,7 @@ tlib https://github.com/vim-scripts/tlib
 ultisnips https://github.com/SirVer/ultisnips
 vim-addon-mw-utils https://github.com/MarcWeber/vim-addon-mw-utils
 vim-airline https://github.com/bling/vim-airline
+vim-airline-themes https://github.com/vim-airline/vim-airline-themes.git
 vim-colortuner https://github.com/zefei/vim-colortuner
 vim-commentary https://github.com/tpope/vim-commentary
 vim-dispatch https://github.com/tpope/vim-dispatch

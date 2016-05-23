@@ -162,10 +162,6 @@ set encoding=utf8
 " Use Unix as the standard file type
 set ffs=unix,dos,mac
 
-" Set up TrueColor in Neovim
-if has("nvim")
-    let $NVIM_TUI_ENABLE_TRUE_COLOR = 1
-endif
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -199,10 +195,6 @@ set cindent
 set cinkeys-=0#
 set indentkeys-=0#
 set wrap "Wrap lines
-
-" Make it so that pasted text automatically indents to the correct
-" level
-nmap p [p
 
 """"""""""""""""""""""""""""""
 " => Visual mode related
@@ -455,13 +447,19 @@ set guioptions-=L
 
 " Colorscheme
 let base16colorspace=256
+
+" Set up TrueColor in Neovim: Disable for now since Tmux doesn't work right
+" if has("nvim")
+"     let $NVIM_TUI_ENABLE_TRUE_COLOR = 1
+" endif
+"
 if has("gui_running")
-    set background=dark
-    colorscheme colorsbox-stbright
+    set background=light
+    colorscheme base16-bright
 else
     set background=dark
-    colorscheme base16-eighties
-    let g:colors_name="base16-eighties"
+    colorscheme base16-solarized
+    let g:colors_name="base16-solarized"
 endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -585,7 +583,7 @@ let g:multi_cursor_next_key="<C-b>"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => vim-airline config (force color)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:airline_theme="luna"
+let g:airline_theme="base16_chalk"
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Vimroom
@@ -596,14 +594,25 @@ let g:goyo_margin_bottom = 2
 nnoremap <silent> <leader>z :Goyo<cr>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Syntastic (syntax checker)
+" => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 autocmd BufWritePost * Neomake
 let s:pwd = getcwd()
+" C++ Config
 let g:neomake_cpp_clang_maker = {
     \ "exe": "clang++",
     \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
     \ }
+let g:neomake_c_clang_maker = {
+    \ "exe": "clang",
+    \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c99"]
+    \ }
+" Python config
+let g:neomake_python_enabled_makers = ["pyflakes"]
+let g:neomake_python_pyflakes_maker = {
+    \ "exe": "pyflakes"
+    \ }
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Taglist
