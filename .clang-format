@@ -1,0 +1,19 @@
+Language: Cpp
+
+AccessModifierOffset: -2 # Don't indent public / private
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignTrailingComments: true
+AlwaysBreakTemplateDeclarations: true
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBraces: BS_Linux
+BreakStringLiterals: true
+ColumnLimit: 80
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+IndentWidth: 4
+NamespaceIndentation: NI_Inner
+PointerAlignment: PAS_Middle
+SpaceBeforeParens: SBPO_ControlStatements
+SpacesInAngles: true
+SpacesInParentheses: true
