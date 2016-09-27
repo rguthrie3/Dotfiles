@@ -82,12 +82,7 @@ set so=7
 set wildmenu
 
 " Ignore compiled files
-set wildignore=*.o,*~,*.pyc,*.class
-if has("win16") || has("win32")
-    set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.DS_Store
-else
-    set wildignore+=.git\*,.hg\*,.svn\*
-endif
+set wildignore=*.o,*~,*.pyc,*.class,.git,.hg
 
 "Always show current position
 set ruler
@@ -126,7 +121,6 @@ set mat=2
 " No annoying sound on errors
 set noerrorbells
 set novisualbell
-set t_vb=
 set tm=500
 
 " Add a bit extra margin to the left
@@ -147,14 +141,6 @@ set showcmd
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable syntax highlighting
 syntax enable
-
-" Set extra options when running in GUI mode
-if has("gui_running")
-    set guioptions-=T
-    set guioptions-=e
-    set t_Co=256
-    set guitablabel=%M\ %t
-endif
 
 " Set utf8 as standard encoding and en_US as the standard language
 set encoding=utf8
@@ -199,11 +185,6 @@ set wrap "Wrap lines
 """"""""""""""""""""""""""""""
 " => Visual mode related
 """"""""""""""""""""""""""""""
-" Visual mode pressing * or # searches for the current selection
-" Super useful! From an idea by Michael Naumann
-vnoremap <silent> * :call VisualSelection('f', '')<CR>
-vnoremap <silent> # :call VisualSelection('b', '')<CR>
-
 " Select the text just pasted in visual mode
 nnoremap gv `[V`]
 
@@ -322,20 +303,6 @@ set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ 
 " Remap VIM 0 to first non-blank character
 map 0 ^
 
-" Easily compile from a Makefile
-noremap <leader>m :Dispatch<cr>
-
-" Fold the method we are currently in
-nmap <leader>ff [mV%zf<Esc>
-
-" Delete trailing white space on save, useful for Python and CoffeeScript ;)
-func! DeleteTrailingWS()
-  exe "normal mz"
-  %s/\s\+$//ge
-  exe "normal `z"
-endfunc
-autocmd BufWrite * :call DeleteTrailingWS()
-
 " Make and load view mappings for folds
 nmap <leader>vl :loadview<CR>
 nmap <leader>vm :mkview<CR>
@@ -431,19 +398,11 @@ endfunction
 " Set font according to system
 if has("mac") || has("macunix")
     set gfn=Source\ Code\ Pro:h12,Menlo:h15
-elseif has("win16") || has("win32")
-    set gfn=Source\ Code\ Pro:h12,Bitstream\ Vera\ Sans\ Mono:h11
 elseif has("linux")
     set gfn=Source\ Code\ Pro:h12,Bitstream\ Vera\ Sans\ Mono:h11
 elseif has("unix")
     set gfn=Monospace\ 11
 endif
-
-" Disable scrollbars (real hackers don't use scrollbars for navigation!)
-set guioptions-=r
-set guioptions-=R
-set guioptions-=l
-set guioptions-=L
 
 " Colorscheme
 let base16colorspace=256
@@ -453,14 +412,9 @@ let base16colorspace=256
 "     let $NVIM_TUI_ENABLE_TRUE_COLOR = 1
 " endif
 "
-if has("gui_running")
-    set background=light
-    colorscheme base16-bright
-else
-    set background=dark
-    colorscheme base16-solarized
-    let g:colors_name="base16-solarized"
-endif
+set background=dark
+colorscheme solarized
+let g:colors_name="base16-solarized"
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Turn persistent undo on
@@ -535,16 +489,6 @@ map <leader>h :MRU<CR>
 
 
 """"""""""""""""""""""""""""""
-" => YankRing
-""""""""""""""""""""""""""""""
-if has("win16") || has("win32")
-    " Don't do anything
-else
-    let g:yankring_history_dir = '~/.vim/temp_dirs/'
-endif
-
-
-""""""""""""""""""""""""""""""
 " => CTRL-P
 """"""""""""""""""""""""""""""
 let g:ctrlp_working_path_mode = 0
@@ -559,54 +503,54 @@ let g:ctrlp_custom_ignore = {
 \ }
 
 
-""""""""""""""""""""""""""""""
-" => Vim grep
-""""""""""""""""""""""""""""""
-let Grep_Skip_Dirs = 'RCS CVS SCCS .svn generated'
-set grepprg=/bin/grep\ -nH
-
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Nerd Tree
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 map <leader>nn :NERDTreeToggle<cr>
-map <leader>nb :NERDTreeFromBookmark
 map <leader>nf :NERDTreeFind<cr>
 let NERDTreeIgnore = ['\.pyc$', '\.o$', '\.class$', '^tags$']
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => vim-multiple-cursors
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:multi_cursor_next_key="<C-b>"
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => vim-airline config (force color)
+" => vim-airline config
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let g:airline_theme="base16_chalk"
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Vimroom
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:goyo_width=100
-let g:goyo_margin_top = 2
-let g:goyo_margin_bottom = 2
-nnoremap <silent> <leader>z :Goyo<cr>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 autocmd BufWritePost * Neomake
 let s:pwd = getcwd()
+" Make config
+let g:neomake_make_maker = {
+    \ 'exe': 'make',
+    \ 'args': ['-j8'],
+    \ 'errorformat': '%f:%l:%c: %m'
+    \ }
+nnoremap <leader>m :Neomake! make<CR>
+
 " C++ Config
+let g:neomake_cpp_enabled_makers = ['gcc', 'clang']
+let g:neomake_cpp_gcc_maker = {
+    \ "exe": "g++",
+    \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
+    \ }
 let g:neomake_cpp_clang_maker = {
     \ "exe": "clang++",
+    \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
+    \ }
+
+" C config
+let g:neomake_c_enabled_makers = ['gcc', 'clang']
+let g:neomake_c_gcc_maker = {
+    \ "exe": "gcc",
     \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
     \ }
 let g:neomake_c_clang_maker = {
     \ "exe": "clang",
     \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c99"]
     \ }
+
 " Python config
 let g:neomake_python_enabled_makers = ["pyflakes"]
 let g:neomake_python_pyflakes_maker = {
@@ -617,7 +561,7 @@ let g:neomake_python_pyflakes_maker = {
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Taglist
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:Tlist_Ctags_Cmd="/usr/local/bin/ctags"
+let g:Tlist_Ctags_Cmd="/usr/bin/ctags"
 let g:Tlist_Use_Right_Window=1
 set tags=./tags;/,tags;/
 nnoremap <leader>y :TlistOpen<CR>
@@ -631,13 +575,6 @@ noremap <leader>cc :Commentary<cr>
 " => Easy Motion
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 map <space> <Plug>(easymotion-bd-w)
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Eclim
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:EclimCompletionMethod='omnifunc'
-let g:EclimFileTypeValidate=0
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => LaTeX
