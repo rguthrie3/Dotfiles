@@ -7,13 +7,13 @@ AlignTrailingComments: true
 AlwaysBreakTemplateDeclarations: true
 BinPackArguments: true
 BinPackParameters: true
-BreakBeforeBraces: BS_Linux
+BreakBeforeBraces: Linux
 BreakStringLiterals: true
 ColumnLimit: 80
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 IndentWidth: 4
-NamespaceIndentation: NI_Inner
-PointerAlignment: PAS_Middle
-SpaceBeforeParens: SBPO_ControlStatements
+NamespaceIndentation: Inner
+PointerAlignment: Middle
+SpaceBeforeParens: ControlStatements
 SpacesInAngles: true
 SpacesInParentheses: true
