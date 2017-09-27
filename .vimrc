@@ -50,8 +50,7 @@ filetype indent on
 " Set to auto read when a file is changed from the outside
 set autoread
 
-" With a map leader it's possible to do extra key combinations
-" like <leader>w saves the current file
+" Map leader to ,
 let mapleader = ","
 let g:mapleader = ","
 
@@ -63,7 +62,6 @@ nmap <leader>q :q<cr>
 
 " Save on exit insert mode
 autocmd InsertLeave * exe "w!"
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Terminal
@@ -78,7 +76,7 @@ nnoremap <leader>t :terminal<CR>
 " Set 7 lines to the cursor - when moving vertically using j/k
 set so=7
 
-" Turn on the WiLd menu
+" Better autocomplete on cmdline
 set wildmenu
 
 " Ignore compiled files
@@ -182,13 +180,6 @@ set cinkeys-=0#
 set indentkeys-=0#
 set wrap "Wrap lines
 
-""""""""""""""""""""""""""""""
-" => Visual mode related
-""""""""""""""""""""""""""""""
-" Select the text just pasted in visual mode
-nnoremap gv `[V`]
-
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Moving around, tabs, windows and buffers
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -216,7 +207,6 @@ map <leader>tc :tabclose<cr>
 map <leader>ts :tab split<cr>
 
 " Opens a new tab with the current buffer's path
-" Super useful when editing files in the same directory
 map <leader>te :tabedit <c-r>=expand("%:p:h")<cr>/<cr>
 
 " Switch CWD to the directory of the open buffer
@@ -234,6 +224,7 @@ autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal! g`\"" |
      \ endif
+
 " Remember info about open buffers on close
 set viminfo^=%
 
@@ -311,6 +302,7 @@ nmap <leader>vm :mkview<CR>
 iabbrev voud void
 iabbrev breakl break;
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ack searching and cope displaying
 "    requires ack.vim - it's much better than vimgrep/grep
@@ -323,6 +315,7 @@ map <leader>g :Ack<space>
 
 " When you press <leader>r you can search and replace the selected text
 vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Spell checking
@@ -429,10 +422,6 @@ endtry
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Command mode related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" $q is super useful when browsing on the command line
-" it deletes everything until the last slash
-cno $q <C-\>eDeleteTillSlash()<cr>
-
 " Bash like keys for the command line
 cnoremap <C-A>		<Home>
 cnoremap <C-E>		<End>
@@ -445,30 +434,9 @@ cnoremap <C-N> <Down>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Helper functions
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-func! DeleteTillSlash()
-    let g:cmd = getcmdline()
-
-    if has("win16") || has("win32")
-        let g:cmd_edited = substitute(g:cmd, "\\(.*\[\\\\]\\).*", "\\1", "")
-    else
-        let g:cmd_edited = substitute(g:cmd, "\\(.*\[/\]\\).*", "\\1", "")
-    endif
-
-    if g:cmd == g:cmd_edited
-        if has("win16") || has("win32")
-            let g:cmd_edited = substitute(g:cmd, "\\(.*\[\\\\\]\\).*\[\\\\\]", "\\1", "")
-        else
-            let g:cmd_edited = substitute(g:cmd, "\\(.*\[/\]\\).*/", "\\1", "")
-        endif
-    endif
-
-    return g:cmd_edited
-endfunc
-
 func! CurrentFileDir(cmd)
     return a:cmd . " " . expand("%:p:h") . "/"
 endfunc
-
 
 
 """"""""""""""""""""""""""""""
@@ -495,6 +463,7 @@ let g:ctrlp_working_path_mode = 0
 
 let g:ctrlp_map = '<c-f>'
 map <leader>j :CtrlP<cr>
+map <leader>J :CtrlPTag<cr>
 
 let g:ctrlp_max_height = 20
 let g:ctrlp_custom_ignore = {
@@ -516,6 +485,7 @@ let NERDTreeIgnore = ['\.pyc$', '\.o$', '\.class$', '^tags$']
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let g:airline_theme="base16_chalk"
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -533,11 +503,18 @@ nnoremap <leader>m :Neomake! make<CR>
 let g:neomake_cpp_enabled_makers = ['gcc', 'clang']
 let g:neomake_cpp_gcc_maker = {
     \ "exe": "g++",
-    \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
+    \ "args": ["-I" . s:pwd . "/inc/",
+    \          "-I" . s:pwd,
+    \           "-I" . s:pwd . "/include/", 
+    \           "\--std=c++14"]
     \ }
 let g:neomake_cpp_clang_maker = {
     \ "exe": "clang++",
-    \ "args": ["-I" . s:pwd . "/inc/", "-I" . s:pwd, "-I./", "\--std=c++11"]
+    \ "args": ["-I" . s:pwd . "/inc/",
+    \          "-I" . s:pwd, 
+    \          "-I./",
+    \          "-I" . s:pwd . "/include/",
+    \          "\--std=c++14"]
     \ }
 
 " C config
@@ -559,22 +536,29 @@ let g:neomake_python_pyflakes_maker = {
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Taglist
+" => CTAGS and Taglist
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let g:Tlist_Ctags_Cmd="/usr/bin/ctags"
 let g:Tlist_Use_Right_Window=1
 set tags=./tags;/,tags;/
 nnoremap <leader>y :TlistOpen<CR>
 
+" If there is only 1 match, jump to it, otherwise present
+" a list
+nnoremap <C-]> g<C-]>
+
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Commentary
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 noremap <leader>cc :Commentary<cr>
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Easy Motion
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 map <space> <Plug>(easymotion-bd-w)
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => LaTeX
@@ -586,6 +570,7 @@ let g:LatexBox_latexmk_preview_continuously=1
 let g:LatexBox_quickfix=2
 let g:LaTeXBox_output_type='' "Let latexmkrc choose the type
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => YouCompleteMe
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -594,16 +579,19 @@ let g:ycm_show_diagnostics_ui=0
 let g:ycm_collect_identifiers_from_tags_files=1
 let g:ycm_autoclose_preview_window_after_insertion=1
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Fugitive
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 map <leader>fd :Gdiff<cr>
 map <leader>fb :Gbrowse<cr>
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => UltiSnips
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let g:UltiSnipsExpandTrigger="<c-j>"
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Cscope

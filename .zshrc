@@ -34,19 +34,18 @@ export LANG=en_US.UTF-8
 export EDITOR='vim'
 export TERM="xterm-256color"
 
-export HDF5_DIR=/usr/local/hdf5
-
 # Aliases
 alias ll="ls -lah"
 alias gas="as"
+alias cdp="cd \${OLDPWD}"
+alias make="make -j 8"
 
 # Paths
-export PATH=/opt/cuda/bin:$PATH
-export LD_LIBRARY_PATH=/opt/cuda/lib64:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=/usr/local/hdf5/lib:$LD_LIBRARY_PATH
-
-# Activate torch
-. /home/rguthrie/Packages/torch/install/bin/torch-activate
+export PATH=/usr/local/bin:/opt/cuda/bin:$PATH # TODO remove
+export LD_LIBRARY_PATH=/opt/cuda/lib64:$LD_LIBRARY_PATH # TODO remove
+export LD_LIBRARY_PATH=/home/rguthrie/Packages/boost_1_60_0/stage/lib:$LD_LIBRARY_PATH # for Dynet (doesnt like boost 1.62)
+export LD_LIBRARY_PATH=/home/rguthrie/Packages/dynet/build/dynet:$LD_LIBRARY_PATH
+export CLASSPATH="/home/rguthrie/Packages/stanford-corenlp-full-2016-10-31/*:${CLASSPATH}"
 
 source $ZSH/oh-my-zsh.sh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
