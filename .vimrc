@@ -45,7 +45,6 @@ set history=700
 
 " Enable filetype plugins
 filetype plugin on
-filetype indent on
 
 " Set to auto read when a file is changed from the outside
 set autoread
@@ -74,7 +73,7 @@ nnoremap <leader>t :terminal<CR>
 " => VIM user interface
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Set 7 lines to the cursor - when moving vertically using j/k
-set so=7
+set scrolloff=7
 
 " Better autocomplete on cmdline
 set wildmenu
@@ -89,7 +88,7 @@ set ruler
 set cmdheight=2
 
 " A buffer becomes hidden when it is abandoned
-set hid
+set hidden
 
 " Configure backspace so it acts as it should act
 set backspace=eol,start,indent
@@ -119,13 +118,15 @@ set mat=2
 " No annoying sound on errors
 set noerrorbells
 set novisualbell
-set tm=500
+
+" Time in ms for a control sequence
+set timeoutlen=500
 
 " Add a bit extra margin to the left
 set foldcolumn=1
 
 " Set line numbers
-set nu
+set number
 
 " Set highlighted line the cursor is on
 set cursorline
@@ -153,8 +154,15 @@ set ffs=unix,dos,mac
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Turn backup off, since most stuff is in SVN, git et.c anyway...
 set nobackup
-set nowb
+set nowritebackup
 set noswapfile
+
+" Persisent undo
+try
+    set undodir=~/.vim/temp_dirs/undodir
+    set undofile
+catch
+endtry
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -163,22 +171,20 @@ set noswapfile
 " Use spaces instead of tabs
 set expandtab
 
-" Be smart when using tabs ;)
+" Be smart when using tabs
 set smarttab
 
 " 1 tab == 4 spaces
 set shiftwidth=4
 set tabstop=4
 
-" Linebreak on 500 characters
-set lbr
-set tw=500
-
-set ai "Auto indent
+set autoindent
 set cindent
 set cinkeys-=0#
 set indentkeys-=0#
-set wrap "Wrap lines
+
+" Long lines wrap to the next line
+set wrap
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Moving around, tabs, windows and buffers
@@ -213,13 +219,12 @@ map <leader>te :tabedit <c-r>=expand("%:p:h")<cr>/<cr>
 map <leader>cd :cd %:p:h<cr>:pwd<cr>
 
 " Specify the behavior when switching between buffers
-try
-  set switchbuf=useopen,usetab,newtab
-  set stal=2
-catch
-endtry
+set switchbuf=useopen,newtab
 
-" Return to last edit position when opening files (You want this!)
+" Always show tabs
+set showtabline=2
+
+" Return to last edit position when opening files
 autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal! g`\"" |
@@ -294,14 +299,6 @@ set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ 
 " Remap VIM 0 to first non-blank character
 map 0 ^
 
-" Make and load view mappings for folds
-nmap <leader>vl :loadview<CR>
-nmap <leader>vm :mkview<CR>
-
-" Abbreviations for my common typos
-iabbrev voud void
-iabbrev breakl break;
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ack searching and cope displaying
@@ -363,26 +360,9 @@ function! HasPaste()
     return ''
 endfunction
 
-" Don't close window, when deleting a buffer
-command! Bclose call <SID>BufcloseCloseIt()
-function! <SID>BufcloseCloseIt()
-   let l:currentBufNum = bufnr("%")
-   let l:alternateBufNum = bufnr("#")
-
-   if buflisted(l:alternateBufNum)
-     buffer #
-   else
-     bnext
-   endif
-
-   if bufnr("%") == l:currentBufNum
-     new
-   endif
-
-   if buflisted(l:currentBufNum)
-     execute("bdelete! ".l:currentBufNum)
-   endif
-endfunction
+func! CurrentFileDir(cmd)
+    return a:cmd . " " . expand("%:p:h") . "/"
+endfunc
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -409,15 +389,6 @@ set background=dark
 colorscheme solarized
 let g:colors_name="base16-solarized"
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Turn persistent undo on
-"    means that you can undo even when you close a buffer/VIM
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-try
-    set undodir=~/.vim/temp_dirs/undodir
-    set undofile
-catch
-endtry
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Command mode related
@@ -426,17 +397,6 @@ endtry
 cnoremap <C-A>		<Home>
 cnoremap <C-E>		<End>
 cnoremap <C-K>		<C-U>
-
-cnoremap <C-P> <Up>
-cnoremap <C-N> <Down>
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Helper functions
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-func! CurrentFileDir(cmd)
-    return a:cmd . " " . expand("%:p:h") . "/"
-endfunc
 
 
 """"""""""""""""""""""""""""""
@@ -447,13 +407,6 @@ let g:bufExplorerShowRelativePath=1
 let g:bufExplorerFindActive=1
 let g:bufExplorerSortBy='name'
 map <leader>o :BufExplorer<cr>
-
-
-""""""""""""""""""""""""""""""
-" => MRU plugin
-""""""""""""""""""""""""""""""
-let MRU_Max_Entries = 400
-map <leader>h :MRU<CR>
 
 
 """"""""""""""""""""""""""""""
@@ -489,7 +442,7 @@ let g:airline_theme="base16_chalk"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-autocmd BufWritePost * Neomake
+"autocmd BufWritePost * Neomake
 let s:pwd = getcwd()
 " Make config
 let g:neomake_make_maker = {
@@ -532,6 +485,12 @@ let g:neomake_c_clang_maker = {
 let g:neomake_python_enabled_makers = ["pyflakes"]
 let g:neomake_python_pyflakes_maker = {
     \ "exe": "pyflakes"
+    \ }
+
+" Haskell config
+let g:neomake_haskell_enabled_makers = ["cabal"]
+let g:neomake_haskell_cabal_maker = {
+    \ "exe": "cabal"
     \ }
 
 
@@ -578,13 +537,6 @@ let g:ycm_confirm_extra_conf=0
 let g:ycm_show_diagnostics_ui=0
 let g:ycm_collect_identifiers_from_tags_files=1
 let g:ycm_autoclose_preview_window_after_insertion=1
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Fugitive
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-map <leader>fd :Gdiff<cr>
-map <leader>fb :Gbrowse<cr>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
