@@ -40,14 +40,8 @@ call pathogen#helptags()
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => General
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Sets how many lines of history VIM has to remember
-set history=700
-
 " Enable filetype plugins
 filetype plugin on
-
-" Set to auto read when a file is changed from the outside
-set autoread
 
 " Map leader to ,
 let mapleader = ","
@@ -75,20 +69,14 @@ nnoremap <leader>t :terminal<CR>
 " Set 7 lines to the cursor - when moving vertically using j/k
 set scrolloff=7
 
-" Better autocomplete on cmdline
+" Show autocomplete results above command line
 set wildmenu
+
+" Allow opening new buffers even while the current one isn't saved
+set hidden
 
 " Ignore compiled files
 set wildignore=*.o,*~,*.pyc,*.class,.git,.hg
-
-"Always show current position
-set ruler
-
-" Height of the command bar
-set cmdheight=2
-
-" A buffer becomes hidden when it is abandoned
-set hidden
 
 " Configure backspace so it acts as it should act
 set backspace=eol,start,indent
@@ -97,23 +85,20 @@ set whichwrap+=<,>,h,l
 " Ignore case when searching
 set ignorecase
 
-" When searching try to be smart about cases
+" Override ignorecase if search contains upper-case letters
 set smartcase
 
 " Highlight search results
 set hlsearch
 
-" Makes search act like search in modern browsers
+" Show search matches as they are typed
 set incsearch
 
-" Don't redraw while executing macros (good performance config)
+" Don't redraw while executing macros
 set lazyredraw
 
 " Show matching brackets when text indicator is over them
 set showmatch
-
-" How many tenths of a second to blink when matching brackets
-set mat=2
 
 " No annoying sound on errors
 set noerrorbells
@@ -122,17 +107,11 @@ set novisualbell
 " Time in ms for a control sequence
 set timeoutlen=500
 
-" Add a bit extra margin to the left
-set foldcolumn=1
-
 " Set line numbers
 set number
 
 " Set highlighted line the cursor is on
 set cursorline
-
-" Show incomplete commands in bottom right
-set showcmd
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -171,7 +150,7 @@ endtry
 " Use spaces instead of tabs
 set expandtab
 
-" Be smart when using tabs
+" Tab inserts blanks according to shiftwidth
 set smarttab
 
 " 1 tab == 4 spaces
@@ -179,9 +158,7 @@ set shiftwidth=4
 set tabstop=4
 
 set autoindent
-set cindent
-set cinkeys-=0#
-set indentkeys-=0#
+set smartindent
 
 " Long lines wrap to the next line
 set wrap
@@ -192,6 +169,9 @@ set wrap
 " Treat long lines as break lines (useful when moving around in them)
 map j gj
 map k gk
+
+" Remap VIM 0 to first non-blank character
+map 0 ^
 
 " Disable highlight when <leader><cr> is pressed
 map <silent> <leader><cr> :noh<cr>
@@ -215,23 +195,14 @@ map <leader>ts :tab split<cr>
 " Opens a new tab with the current buffer's path
 map <leader>te :tabedit <c-r>=expand("%:p:h")<cr>/<cr>
 
-" Switch CWD to the directory of the open buffer
-map <leader>cd :cd %:p:h<cr>:pwd<cr>
-
 " Specify the behavior when switching between buffers
 set switchbuf=useopen,newtab
-
-" Always show tabs
-set showtabline=2
 
 " Return to last edit position when opening files
 autocmd BufReadPost *
      \ if line("'\"") > 0 && line("'\"") <= line("$") |
      \   exe "normal! g`\"" |
      \ endif
-
-" Remember info about open buffers on close
-set viminfo^=%
 
 " Mouse scrolling
 set mouse=a
@@ -283,86 +254,12 @@ endfunction
 " Close all but the current buffer
 nnoremap <leader>bo :BufOnly<CR>
 
-""""""""""""""""""""""""""""""
-" => Status line
-""""""""""""""""""""""""""""""
-" Always show the status line
-set laststatus=2
-
-" Format the status line
-set statusline=\ %{HasPaste()}%F%m%r%h\ %w\ \ CWD:\ %r%{getcwd()}%h\ \ \ Line:\ %l
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Editing mappings
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Remap VIM 0 to first non-blank character
-map 0 ^
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Ack searching and cope displaying
-"    requires ack.vim - it's much better than vimgrep/grep
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" When you press gv you Ack after the selected text
-vnoremap <silent> gv :call VisualSelection('gv', '')<CR>
-
-" Open Ack and put the cursor in the right position
-map <leader>g :Ack<space>
-
-" When you press <leader>r you can search and replace the selected text
-vnoremap <silent> <leader>r :call VisualSelection('replace', '')<CR>
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Spell checking
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Pressing ,ss will toggle and untoggle spell checking
 map <leader>ss :setlocal spell!<cr>
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Helper functions
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function! CmdLine(str)
-    exe "menu Foo.Bar :" . a:str
-    emenu Foo.Bar
-    unmenu Foo
-endfunction
-
-function! VisualSelection(direction, extra_filter) range
-    let l:saved_reg = @"
-    execute "normal! vgvy"
-
-    let l:pattern = escape(@", '\\/.*$^~[]')
-    let l:pattern = substitute(l:pattern, "\n$", "", "")
-
-    if a:direction == 'b'
-        execute "normal ?" . l:pattern . "^M"
-    elseif a:direction == 'gv'
-        call CmdLine("Ack \"" . l:pattern . "\" " )
-    elseif a:direction == 'replace'
-        call CmdLine("%s" . '/'. l:pattern . '/')
-    elseif a:direction == 'f'
-        execute "normal /" . l:pattern . "^M"
-    endif
-
-    let @/ = l:pattern
-    let @" = l:saved_reg
-endfunction
-
-
-" Returns true if paste mode is enabled
-function! HasPaste()
-    if &paste
-        return 'PASTE MODE  '
-    en
-    return ''
-endfunction
-
-func! CurrentFileDir(cmd)
-    return a:cmd . " " . expand("%:p:h") . "/"
-endfunc
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -442,7 +339,7 @@ let g:airline_theme="base16_chalk"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"autocmd BufWritePost * Neomake
+autocmd BufWritePost * Neomake
 let s:pwd = getcwd()
 " Make config
 let g:neomake_make_maker = {
@@ -488,10 +385,7 @@ let g:neomake_python_pyflakes_maker = {
     \ }
 
 " Haskell config
-let g:neomake_haskell_enabled_makers = ["cabal"]
-let g:neomake_haskell_cabal_maker = {
-    \ "exe": "cabal"
-    \ }
+let g:neomake_haskell_enabled_makers = ["hlint"]
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -538,6 +432,10 @@ let g:ycm_show_diagnostics_ui=0
 let g:ycm_collect_identifiers_from_tags_files=1
 let g:ycm_autoclose_preview_window_after_insertion=1
 
+let g:haskellmode_completion_ghc = 0
+autocmd FileType haskell setlocal omnifunc=necoghc#omnifunc
+let g:ycm_semantic_triggers = {'haskell' : ['.']}
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => UltiSnips
@@ -549,3 +447,10 @@ let g:UltiSnipsExpandTrigger="<c-j>"
 " => Cscope
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 nnoremap <leader>cs :call CscopeFindInteractive(expand('<cword>'))<CR>
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" => Ack
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Open Ack and put the cursor in the right position
+map <leader>g :Ack<space>
