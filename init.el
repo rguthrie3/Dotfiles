@@ -39,13 +39,7 @@
 (require 'use-package)
 
 ;; =======================================================================
-;; HYDRA
-;; =======================================================================
-(use-package hydra
-  :ensure t)
-
-;; =======================================================================
-;; EVIL
+;; SCRIPTING CMDS
 ;; =======================================================================
 (defun split-horizontally-and-move-to-window ()
   "Split a window and also move to it"
@@ -59,6 +53,34 @@
   (split-window-horizontally)
   (windmove-right))
 
+(defun evil-tab-sensitive-quit ()
+  (interactive)
+  (if (> (length (elscreen-get-screen-list)) 1)
+      (if (> (count-windows) 1)
+          (evil-quit)
+        (elscreen-kill))
+    (evil-quit)))
+
+(defun dired-in-new-tab ()
+  (interactive)
+  (require 'projectile)
+  (let ((root (or (projectile-project-root) default-directory)))
+    (evil-ex-call-command nil "tabnew" nil)
+    (dired root)))
+
+(defun reload-emacs ()
+  (interactive)
+  (load-file "~/.emacs.d/init.el"))
+
+;; =======================================================================
+;; HYDRA
+;; =======================================================================
+(use-package hydra
+  :ensure t)
+
+;; =======================================================================
+;; EVIL
+;; =======================================================================
 (use-package evil
   :ensure t
   :config (evil-mode)
@@ -80,28 +102,11 @@
   (evil-define-key 'normal 'global (kbd ",s") 'split-horizontally-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",v") 'split-vertically-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",c") 'comment-or-uncomment-region)
-  (evil-define-key 'normal 'global (kbd ",m") 'compile))
+  (evil-define-key 'normal 'global (kbd ",m") 'compile)
 
-
-(use-package evil-tabs
-  :ensure t
-  :config (evil-tabs-mode))
-
-(evil-define-command evil-tab-sensitive-quit (&optional bang)
-  :repeat nil
-  (interactive "<!>")
-  (if (> (length (elscreen-get-screen-list)) 1)
-      (if (> (count-windows) 1)
-          (evil-quit)
-        (elscreen-kill))
-    (evil-quit)))
-
-(defun dired-in-new-tab ()
-  (interactive)
-  (require 'projectile)
-  (let ((root (or (projectile-project-root) default-directory)))
-    (evil-ex-call-command nil "tabnew" nil)
-    (dired root)))
+  (use-package evil-tabs
+    :ensure t
+    :config (evil-tabs-mode)))
 
 ;; =======================================================================
 ;; CLEAN UP STANDARD EMACS CONF
@@ -177,27 +182,33 @@
 ;; Write backups in .emacs.d/backups instead of all over fs
 (setq backup-directory-alist `(("." . ,(concat user-emacs-directory "backups"))))
 
+;; Ctags
+(setq tags-table-list '()) ; Put tags file here
+
 ;; =======================================================================
 ;; DIRED
 ;; =======================================================================
-(require 'dired)
-
-;; Dired sort directories together at the top
-;; TODO: This doesn't work on OSX
-;(setq dired-listing-switches "-la --group-directories-first")
-
-;; Always refresh Dired from the fs state
-(setq dired-auto-revert-buffer t)
-
-(define-key dired-mode-map (kbd "n") 'evil-search-next)
-(define-key dired-mode-map (kbd "N") 'evil-search-previous)
-(define-key dired-mode-map (kbd "?") 'evil-search-backward)
-(define-key dired-mode-map (kbd "G") 'revert-buffer)
-
-(use-package dired-subtree
-  :ensure t
+(use-package dired
   :config
-  (define-key dired-mode-map (kbd "TAB") 'dired-subtree-toggle))
+
+  ;; Dired sort directories together at the top
+  ;; TODO: This doesn't work on OSX
+                                        ;(setq dired-listing-switches "-la --group-directories-first")
+
+  ;; Always refresh Dired from the fs state
+  (setq dired-auto-revert-buffer t)
+
+  ;; These are required because Evil unbinds all of its keys by default in Dired mode
+  ;; (it isn't that dired-mode-map overrides Evil... a bit confusing)
+  (define-key dired-mode-map (kbd "n") 'evil-search-next)
+  (define-key dired-mode-map (kbd "N") 'evil-search-previous)
+  (define-key dired-mode-map (kbd "?") 'evil-search-backward)
+  (define-key dired-mode-map (kbd "G") 'revert-buffer)
+
+  (use-package dired-subtree
+    :ensure t
+    :config
+    (define-key dired-mode-map (kbd "TAB") 'dired-subtree-toggle)))
 
 ;; =======================================================================
 ;; Python
@@ -209,25 +220,25 @@
 ;; =======================================================================
 ;; C++
 ;; =======================================================================
-;; Make _ not a word boundary
-(defun cpp-init-stuff ()
-  (modify-syntax-entry ?_ "w" c++-mode-syntax-table))
-(add-hook 'c++-mode-hook 'cpp-init-stuff)
+(use-package cc-mode
+  :config
 
-;; C++ indentation
-;; Don't indent within a namespace
-(setq my-cc-style
-      '("cc-mode"
-	(c-offsets-alist . ((innamespace . [0])))))
-(c-add-style "my-cc-style" my-cc-style)
-(add-hook 'c++-mode-hook (lambda () (c-set-style "my-cc-style")))
+  ;; Make _ not a word boundary
+  (defun cpp-init-stuff ()
+    (modify-syntax-entry ?_ "w" c++-mode-syntax-table))
+  (add-hook 'c++-mode-hook 'cpp-init-stuff)
 
-;; Fix all problems with modern C++ syntax highlighting
-(use-package modern-cpp-font-lock :ensure t)
-(add-hook 'c++-mode-hook #'modern-c++-font-lock-mode)
+  ;; C++ indentation
+  ;; Don't indent within a namespace
+  (setq my-cc-style
+        '("cc-mode"
+          (c-offsets-alist . ((innamespace . [0])))))
+  (c-add-style "my-cc-style" my-cc-style)
+  (add-hook 'c++-mode-hook (lambda () (c-set-style "my-cc-style")))
 
-;; Ctags
-(setq tags-table-list '()) ; Put tags file here
+  ;; Fix all problems with modern C++ syntax highlighting
+  (use-package modern-cpp-font-lock :ensure t)
+  (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode))
 
 ;; =======================================================================
 ;; CLOJURE
@@ -244,16 +255,24 @@
   ("{" paredit-wrap-curly "wrap-curly")
   ("[" paredit-wrap-square "wrap-square")
   ("f" paredit-forward "forward")
+  ("F j" paredit-forward-down "forward-down")
+  ("F k" paredit-forward-up "forward-up")
   ("b" paredit-backward "backward")
+  ("B j" paredit-backward-down "backward-down")
+  ("B k" paredit-backward-up "backward-up")
   ("s" paredit-splice-sexp "splice")
+  ("t" transpose-sexps "transpose")
   ("j" paredit-join-sexps "join")
+  ("r" raise-sexp "join")
   ("k" kill-sexp "kill"))
 
 ;; Makes normal mode operations preserve paren balance
-(use-package evil-paredit :ensure t)
+(use-package paredit
+  :config
+  (use-package evil-paredit :ensure t)
 
-;; Paredit in emacs lisp
-(add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode) (evil-paredit-mode)))
+  ;; Paredit in emacs lisp
+  (add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode) (evil-paredit-mode))))
 
 (defun my-clojure-stuff ()
   (rainbow-delimiters-mode t) ; Highlight matching parens
@@ -337,14 +356,12 @@
   (defvar-local bounds (bounds-of-thing-at-point 'paragraph))
   (clang-format-region (car bounds) (cdr bounds)))
 
-(defun my-clang-format-set-config ()
+(use-package clang-format
+  :ensure t
+  :config
   (setq clang-format-style-option "file")
   (evil-define-key 'visual 'c++-mode-map (kbd "SPC ff") 'clang-format-region)
   (evil-define-key 'normal 'c++-mode-map (kbd "SPC ff") 'flang-format-region-at-point))
-
-(use-package clang-format
-  :ensure t
-  :config (my-clang-format-set-config))
 
 ;; =======================================================================
 ;; HELM
@@ -476,13 +493,6 @@
   :config
   (helm-projectile-on)
   (setq projectile-completion-system 'helm))
-
-; =======================================================================
-;; CUSTOM COMMANDS
-;; =======================================================================
-(defun reload-emacs ()
-  (interactive)
-  (load-file "~/.emacs.d/init.el"))
 
 
 ;; =======================================================================
