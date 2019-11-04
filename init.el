@@ -15,7 +15,6 @@
 ;; C-t 
 ;; C-y
 ;; C-z
-;; C-n
 ;;
 ;; "Prefixes" that are used for just a single action
 ;; C-g       Quit command
@@ -53,14 +52,6 @@
   (split-window-horizontally)
   (windmove-right))
 
-(defun evil-tab-sensitive-quit ()
-  (interactive)
-  (if (> (length (elscreen-get-screen-list)) 1)
-      (if (> (count-windows) 1)
-          (evil-quit)
-        (elscreen-kill))
-    (evil-quit)))
-
 (defun dired-in-new-tab ()
   (interactive)
   (require 'projectile)
@@ -84,6 +75,17 @@
 (use-package evil
   :ensure t
   :config (evil-mode)
+  (use-package evil-tabs
+    :ensure t
+    :config (evil-tabs-mode))
+  (defun evil-tab-sensitive-quit ()
+    (interactive)
+    (require 'evil)
+    (if (> (length (elscreen-get-screen-list)) 1)
+        (if (> (count-windows) 1)
+            (evil-quit)
+          (elscreen-kill))
+      (evil-quit)))
   (evil-define-key '(normal motion) 'global "\C-l" 'windmove-right)
   (evil-define-key '(normal motion) 'global "\C-k" 'windmove-up)
   (evil-define-key '(normal motion) 'global "\C-j" 'windmove-down)
@@ -102,12 +104,7 @@
   (evil-define-key 'normal 'global (kbd ",s") 'split-horizontally-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",v") 'split-vertically-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",c") 'comment-or-uncomment-region)
-  (evil-define-key 'normal 'global (kbd ",m") 'compile)
-
-  (use-package evil-tabs
-    :ensure t
-    :config (evil-tabs-mode)))
-
+  (evil-define-key 'normal 'global (kbd ",m") 'compile))
 ;; =======================================================================
 ;; CLEAN UP STANDARD EMACS CONF
 ;; =======================================================================
@@ -216,6 +213,14 @@
 (defun python-init-stuff ()
   (modify-syntax-entry ?_ "w" python-mode-syntax-table))
 (add-hook 'python-mode-hook 'python-init-stuff)
+
+;; =======================================================================
+;; HTML/CSS
+;; =======================================================================
+(defun my-css-stuff ()
+  (add-to-list 'company-backends 'company-css))
+
+(add-hook 'css-mode-hook 'my-css-stuff)
 
 ;; =======================================================================
 ;; C++
@@ -338,8 +343,8 @@
   :ensure t)
 
 (defun my-cider-repl-mode-stuff ()
-  (evil-define-key '(normal motion) 'local (kbd "<up>") nil)
-  (evil-define-key '(normal motion) 'local (kbd "<down>") nil)
+  (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
+  (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
   (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
 
 (add-hook 'clojure-mode-hook 'my-clojure-stuff)
@@ -418,8 +423,8 @@
   (define-key company-active-map (kbd "TAB") 'company-complete-selection)
   (define-key company-active-map (kbd "C-n") 'company-select-next)
   (define-key company-active-map (kbd "C-p") 'company-select-previous)
-  (setq company-idle-delay 0.2
-	company-minimum-prefix-length 2
+  (setq company-idle-delay 0.1
+	company-minimum-prefix-length 0
 	company-show-numbers nil
 	company-tooltip-limit 20
 	company-dabbrev-downcase nil)
