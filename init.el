@@ -64,12 +64,6 @@
   (load-file "~/.emacs.d/init.el"))
 
 ;; =======================================================================
-;; HYDRA
-;; =======================================================================
-(use-package hydra
-  :ensure t)
-
-;; =======================================================================
 ;; EVIL
 ;; =======================================================================
 (use-package evil
@@ -77,7 +71,10 @@
   :config (evil-mode)
   (use-package evil-tabs
     :ensure t
-    :config (evil-tabs-mode))
+    :config
+    (evil-tabs-mode)
+    (evil-define-key 'motion 'global (kbd "g t") 'evil-tabs-goto-tab)
+    (evil-define-key 'motion 'global (kbd "g T") 'elscreen-previous))
   (defun evil-tab-sensitive-quit ()
     (interactive)
     (require 'evil)
@@ -86,16 +83,21 @@
             (evil-quit)
           (elscreen-kill))
       (evil-quit)))
+
+  ;; Window movement
   (evil-define-key '(normal motion) 'global "\C-l" 'windmove-right)
   (evil-define-key '(normal motion) 'global "\C-k" 'windmove-up)
   (evil-define-key '(normal motion) 'global "\C-j" 'windmove-down)
   (evil-define-key '(normal motion) 'global "\C-h" 'windmove-left)
+  (evil-define-key '(normal motion insert) 'global (kbd "C-x w") 'delete-other-windows)
+  (evil-define-key '(normal motion) 'global (kbd "C-w") nil)
+
   (evil-define-key '(normal motion) 'global "\C-d" 'evil-scroll-down)
   (evil-define-key '(normal motion) 'global "\C-u" 'evil-scroll-up)
-  (evil-define-key '(normal motion insert) 'global (kbd "C-x w") 'delete-other-windows)
   (evil-define-key '(normal motion) 'global (kbd "0") 'evil-first-non-blank)
   (evil-define-key 'insert 'global "\C-w" 'evil-delete-backward-word)
 
+  ;; Old vim prefix
   (evil-define-key '(normal motion) 'global (kbd ",") nil)
   (evil-define-key '(normal motion) 'global (kbd ",q") 'evil-tab-sensitive-quit)
   (evil-define-key '(normal motion) 'global (kbd ",t") 'dired-in-new-tab)
@@ -105,6 +107,25 @@
   (evil-define-key 'normal 'global (kbd ",v") 'split-vertically-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",c") 'comment-or-uncomment-region)
   (evil-define-key 'normal 'global (kbd ",m") 'compile))
+
+;; =======================================================================
+;; HYDRA
+;; =======================================================================
+(use-package hydra
+  :ensure t)
+
+(defhydra hydra-window (evil-normal-state-map "C-w")
+  "modify windows"
+  ("k" (evil-window-increase-height 5) "increase-height")
+  ("j" (evil-window-decrease-height 5) "decrease-height")
+  ("h" (evil-window-decrease-width 5) "decrease-width")
+  ("l" (evil-window-increase-width 5) "increase-width"))
+
+(defhydra hydra-tabs (global-map "C-x n")
+  "switch tabs"
+  ("l" evil-tabs-goto-tab "next-tab")
+  ("h" elscreen-previous "prev-tab"))
+
 ;; =======================================================================
 ;; CLEAN UP STANDARD EMACS CONF
 ;; =======================================================================
@@ -182,6 +203,19 @@
 ;; Ctags
 (setq tags-table-list '()) ; Put tags file here
 
+;; Compilation
+(require 'compile)
+(define-key global-map (kbd "C-x m") 'compile)
+(define-key compilation-mode-map (kbd "g") nil)
+(define-key compilation-mode-map (kbd "r") 'recompile)
+
+;; Always display certain buffers in a new window
+(setq display-buffer-alist '(("\\*cider-error\\*"
+                              (display-buffer-reuse-window display-buffer-pop-up-window)
+                              ())))
+(setq split-width-threshold 1)
+(setq split-height-threshold 1)
+
 ;; =======================================================================
 ;; DIRED
 ;; =======================================================================
@@ -245,6 +279,11 @@
   (use-package modern-cpp-font-lock :ensure t)
   (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode))
 
+(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
+(add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-mode))
+(add-to-list 'auto-mode-alist '("\\.H\\'" . c++-mode))
+(add-to-list 'auto-mode-alist '("\\.C\\'" . c++-mode))
+
 ;; =======================================================================
 ;; CLOJURE
 ;; =======================================================================
@@ -271,13 +310,15 @@
   ("r" raise-sexp "join")
   ("k" kill-sexp "kill"))
 
+(use-package rainbow-delimiters :ensure t)
+
 ;; Makes normal mode operations preserve paren balance
 (use-package paredit
   :config
   (use-package evil-paredit :ensure t)
 
   ;; Paredit in emacs lisp
-  (add-hook 'emacs-lisp-mode-hook (lambda () (paredit-mode) (evil-paredit-mode))))
+  (add-hook 'emacs-lisp-mode-hook (lambda () (rainbow-delimiters-mode) (paredit-mode) (evil-paredit-mode))))
 
 (defun my-clojure-stuff ()
   (rainbow-delimiters-mode t) ; Highlight matching parens
@@ -392,6 +433,32 @@
   (setq helm-swoop-split-direction 'split-window-vertically)
   (setq helm-swoop-use-fuzzy-match t))
   
+;; =======================================================================
+;; OTHER PKGS
+;; =======================================================================
+(use-package which-key
+  :ensure t
+  :config (which-key-mode t))
+
+(use-package evil-easymotion
+  :ensure t
+  :config
+  (evilem-default-keybindings "SPC"))
+
+(use-package yasnippet
+  :ensure t
+  :config (use-package yasnippet-snippets :ensure t)
+  (yas-global-mode 1)
+  (evil-define-key 'insert 'global (kbd "C-x y y") 'yas-expand)
+  (evil-define-key 'insert 'global (kbd "C-x y c") 'company-yasnippet)
+  (evil-define-key 'insert 'global (kbd "C-x y n") 'yas-next-field)
+  (evil-define-key 'insert 'global (kbd "C-x y p") 'yas-prev-field))
+
+(use-package evil-magit
+  :ensure t
+  :config
+  (evil-magit-init)
+  (global-set-key (kbd "C-x g") 'magit-status))
 
 ;; =======================================================================
 ;; IRONY
@@ -423,6 +490,8 @@
   (define-key company-active-map (kbd "TAB") 'company-complete-selection)
   (define-key company-active-map (kbd "C-n") 'company-select-next)
   (define-key company-active-map (kbd "C-p") 'company-select-previous)
+  (define-key company-active-map (kbd "C-w") 'backward-kill-word)
+  (add-to-list 'company-backends 'company-yasnippet)
   (setq company-idle-delay 0.1
 	company-minimum-prefix-length 0
 	company-show-numbers nil
@@ -446,37 +515,6 @@
       (setq company-c-headers-path-user #'company-c-headers-path-user-irony)
       (add-to-list 'company-backends #'company-c-headers)))
 )
-(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.H\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.C\\'" . c++-mode))
-
-;; =======================================================================
-;; OTHER PKGS
-;; =======================================================================
-(use-package which-key
-  :ensure t
-  :config (which-key-mode t))
-
-(use-package evil-easymotion
-  :ensure t
-  :config
-  (evilem-default-keybindings "SPC"))
-
-(use-package yasnippet
-  :ensure t
-  :config (use-package yasnippet-snippets :ensure t)
-  (yas-global-mode 1)
-  (evil-define-key 'insert 'global (kbd "C-x y y") 'yas-expand)
-  (evil-define-key 'insert 'global (kbd "C-x y c") 'company-yasnippet)
-  (evil-define-key 'insert 'global (kbd "C-x y n") 'yas-next-field)
-  (evil-define-key 'insert 'global (kbd "C-x y p") 'yas-prev-field))
-
-(use-package evil-magit
-  :ensure t
-  :config
-  (evil-magit-init)
-  (global-set-key (kbd "C-x g") 'magit-status))
 
 ;; =======================================================================
 ;; PROJECTILE
