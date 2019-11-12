@@ -320,79 +320,144 @@
   ;; Paredit in emacs lisp
   (add-hook 'emacs-lisp-mode-hook (lambda () (rainbow-delimiters-mode) (paredit-mode) (evil-paredit-mode))))
 
-(defun my-clojure-stuff ()
-  (rainbow-delimiters-mode t) ; Highlight matching parens
-  (cider-mode t)
-  (paredit-mode t)
-  (clj-refactor-mode t)
-  (yas-minor-mode t)
-  (evil-define-key 'insert 'local (kbd "(") 'paredit-open-round)
-  (evil-define-key 'insert 'local (kbd "{") 'paredit-open-curly)
-  (evil-define-key 'insert 'local (kbd "[") 'paredit-open-square)
-  (evil-define-key 'insert 'local (kbd ")") 'paredit-close-round)
-  (evil-define-key 'insert 'local (kbd "}") 'paredit-close-curly)
-  (evil-define-key 'insert 'local (kbd "]") 'paredit-close-square))
+(use-package aggressive-indent :ensure t)
 
-(use-package clojure-mode :ensure t)
+(use-package clojure-mode
+  :ensure t
+  :config
+  (setq clojure-indent-style 'align-arguments)
+  (setq clojure-align-forms-automatically t)
 
-(use-package cider
-             :ensure t
-             :config
-             (setq cider-repl-display-in-current-window t)
-             ;; Cider control
-             (define-key cider-mode-map (kbd "C-c q") 'cider-quit)
-             (define-key cider-mode-map (kbd "C-c j") 'cider-jack-in)
+  (use-package clj-refactor :ensure t)
+  (use-package cljr-helm :ensure t)
 
-             ;; Definition lookup
-             (define-key cider-mode-map (kbd "C-c g d") 'cider-find-var)
+  (use-package cider
+    :ensure t
+    :config
+    (setq cider-repl-display-in-current-window t)
+    ;; Unbind certain things that we don't use (so which-key is more useful)
+    (define-key clojure-mode-map (kbd "C-c M-c") nil) ; connect
+    (define-key clojure-mode-map (kbd "C-c M-C") nil) ; connect
+    (define-key clojure-mode-map (kbd "C-c M-j") nil) ; jack in
+    (define-key clojure-mode-map (kbd "C-c M-J") nil) ; jack in
+    (define-key clojure-mode-map (kbd "C-c M-x") nil) ; restart
+    (define-key clojure-mode-map (kbd "C-c M-z") nil) ; restart
+    (define-key clojure-mode-map (kbd "C-c C-x") nil) ; cider start
+    (define-key clojure-mode-map (kbd "C-c M-t") nil) ; trace stuff
+    (define-key cider-mode-map (kbd "C-c C-.") nil) ; find ns
+    (define-key cider-mode-map (kbd "C-c C-:") nil) ; find kw
+    (define-key cider-mode-map (kbd "C-c M-.") nil) ; find resource
+    (define-key cider-mode-map (kbd "C-c M-p") nil)
+    (define-key cider-mode-map (kbd "C-c M-d") nil)
+    (define-key cider-mode-map (kbd "C-c M-e") nil) ; eval
+    (define-key cider-mode-map (kbd "C-c M-:") nil) ; eval
+    (define-key cider-mode-map (kbd "C-c M-m") nil) ; macroexpand
+    (define-key cider-mode-map (kbd "C-c M-r") nil) ; restart
 
-             ;; Expression evaluation
-             (define-key cider-mode-map (kbd "C-c C-e") nil)
-             (define-key cider-mode-map (kbd "C-c C-e l") 'cider-eval-last-sexp)
-             (define-key cider-mode-map (kbd "C-c C-e r") 'cider-eval-last-sexp-to-repl)
-             (define-key cider-mode-map (kbd "C-c C-e p") 'cider-insert-last-sexp-in-repl)
-             (define-key cider-mode-map (kbd "C-c C-e t") 'cider-eval-defun-at-point)
-             (define-key cider-mode-map (kbd "C-c C-e a") 'cider-eval-sexp-at-point)
-             (define-key cider-mode-map (kbd "C-c C-e d") 'cider-debug-defun-at-point)
+    ;; Cider control
+    (define-key cider-mode-map (kbd "C-c q") 'cider-quit)
+    (define-key cider-mode-map (kbd "C-c j") 'cider-jack-in)
+    (define-key cider-mode-map (kbd "C-c J") 'cider-jack-in-cljs)
 
-             ;; Formatting
-             (define-key cider-mode-map (kbd "C-c f r") 'cider-format-region)
-             (define-key cider-mode-map (kbd "C-c f f") 'cider-format-defun)
+    ;; Find thing: C-c g
+    (let (my-cider-find-map)
+      (define-prefix-command 'my-cider-find-map)
+      (define-key my-cider-find-map (kbd "d") 'cider-find-var)
+      (define-key my-cider-find-map (kbd "n") 'cider-find-ns)
+      (define-key my-cider-find-map (kbd "r") 'cider-find-resource)
+      (define-key my-cider-find-map (kbd "k") 'cider-find-keyword)
+      (define-key cider-mode-map (kbd "C-c g") 'my-cider-find-map))
 
-             ;; Documentation
-             (define-key cider-mode-map (kbd "C-c C-d c") 'clojure-view-cheatsheet)
+    ;; Expression evaluation: C-c e
+    (let (my-cider-eval-map)
+      (define-prefix-command 'my-cider-eval-map)
+      (define-key my-cider-eval-map (kbd "l") 'cider-eval-last-sexp)
+      (define-key my-cider-eval-map (kbd "r") 'cider-eval-last-sexp-to-repl)
+      (define-key my-cider-eval-map (kbd "p") 'cider-insert-last-sexp-in-repl)
+      (define-key my-cider-eval-map (kbd "t") 'cider-eval-defun-at-point)
+      (define-key my-cider-eval-map (kbd "a") 'cider-eval-sexp-at-point)
+      (define-key my-cider-eval-map (kbd "d") 'cider-debug-defun-at-point)
+      (define-key cider-mode-map (kbd "C-c e") 'my-cider-eval-map))
 
-             ;; Namespacing
-             (define-key cider-mode-map (kbd "C-c C-n") 'cider-repl-set-ns)
+    ;; Macros: C-c m
+    (let (my-cider-macro-map)
+      (define-prefix-command 'my-cider-macro-map)
+      (define-key my-cider-macro-map (kbd "1") 'cider-macroexpand-1)
+      (define-key my-cider-macro-map (kbd "a") 'cider-macroexpand-all)
+      (define-key cider-mode-map (kbd "C-c m") 'my-cider-macro-map))
 
-             ;; Fix up REPL usage in Normal mode
-             (define-key cider-repl-mode-map (kbd "<up>") 'cider-repl-backward-input)
-             (define-key cider-repl-mode-map (kbd "<down>") 'cider-repl-forward-input)
-             ;; We define RET -> cider-repl-return in cider-repl-mode-hooks for evil reasons
+    ;; Formatting: C-c f
+    (let (my-cider-format-map)
+      (define-prefix-command 'my-cider-format-map)
+      (define-key my-cider-format-map (kbd "r") 'cider-format-region)
+      (define-key my-cider-format-map (kbd "f") 'cider-format-defun)
+      (define-key cider-mode-map (kbd "C-c f") 'my-cider-format-map))
 
-             ;; Renaming refactorings
-             (define-key clj-refactor-map (kbd "C-c r r f") 'cljr-rename-file-or-dir)
-             (define-key clj-refactor-map (kbd "C-c r r s") 'cljr-rename-symbol)
-             ;; Let refactorings
-             (define-key clojure-mode-map (kbd "C-c r l i") 'clojure-introduce-let)
-             (define-key clojure-mode-map (kbd "C-c r l m") 'clojure-move-to-let)
-             (define-key clj-refactor-map (kbd "C-c r l r") 'cljr-remove-let)
-             ;; Inline symbol
-             (define-key clj-refactor-map (kbd "C-c r i") 'cljr-inline-symbol))
+    ;; Documentation: C-c C-d (by default), C-c d
+    (define-key cider-doc-map (kbd "c") 'clojure-view-cheatsheet)
+    (define-key cider-mode-map (kbd "C-c d") 'cider-doc-map)
 
-(use-package clj-refactor
-  :ensure t)
+    ;; Namespacing
+    (define-key cider-mode-map (kbd "C-c C-n") 'cider-repl-set-ns)
 
-(defun my-cider-repl-mode-stuff ()
-  (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
-  (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
-  (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
+    ;; Fix up REPL usage in Normal mode
+    (define-key cider-repl-mode-map (kbd "<up>") 'cider-repl-backward-input)
+    (define-key cider-repl-mode-map (kbd "<down>") 'cider-repl-forward-input)
+    ;; We define RET -> cider-repl-return in cider-repl-mode-hooks for evil reasons
 
-(add-hook 'clojure-mode-hook 'my-clojure-stuff)
-(add-hook 'cider-mode-hook #'company-mode)
-(add-hook 'cider-repl-mode-hook #'company-mode)
-(add-hook 'cider-repl-mode-hook #'paredit-mode)
-(add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff)
+    ;; Refactoring: C-c r
+    (define-key clojure-mode-map (kbd "C-c C-r") 'cljr-helm)
+    (let ((my-cljr-refactor-map)
+          (my-cljr-refactor-rename-map)
+          (my-cljr-refactor-let-map)
+          (my-cljr-refactor-cycle-map))
+      (define-prefix-command 'my-cljr-refactor-map)
+      (define-prefix-command 'my-cljr-refactor-rename-map)
+      (define-prefix-command 'my-cljr-refactor-let-map)
+      (define-prefix-command 'my-cljr-refactor-cycle-map)
+      ;; Renaming refactorings C-c r r
+      (define-key my-cljr-refactor-rename-map (kbd "f") 'cljr-rename-file-or-dir)
+      (define-key my-cljr-refactor-rename-map (kbd "s") 'cljr-rename-symbol)
+      (define-key my-cljr-refactor-map (kbd "r") 'my-cljr-refactor-rename-map)
+      ;; Let refactorings C-c r l
+      (define-key my-cljr-refactor-let-map (kbd "i") 'clojure-introduce-let)
+      (define-key my-cljr-refactor-let-map (kbd "m") 'clojure-move-to-let)
+      (define-key my-cljr-refactor-let-map (kbd "r") 'cljr-remove-let)
+      (define-key my-cljr-refactor-map (kbd "l") 'my-cljr-refactor-let-map)
+      ;; Inline symbol C-c r i
+      (define-key my-cljr-refactor-map (kbd "i") 'cljr-inline-symbol)
+      ;; Cycle C-c r c
+      (define-key my-cljr-refactor-cycle-map (kbd "p") 'clojure-cycle-privacy)
+      (define-key my-cljr-refactor-cycle-map (kbd "n") 'clojure-cycle-not)
+      (define-key my-cljr-refactor-cycle-map (kbd "i") 'clojure-cycle-if)
+      (define-key my-cljr-refactor-map (kbd "c") 'my-cljr-refactor-cycle-map)
+
+      (define-key clojure-mode-map (kbd "C-c r") 'my-cljr-refactor-map)))
+
+  (defun my-cider-repl-mode-stuff ()
+    (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
+    (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
+    (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
+
+  (defun my-clojure-stuff ()
+    (rainbow-delimiters-mode t) ; Highlight matching parens
+    (cider-mode t)
+    (paredit-mode t)
+    (clj-refactor-mode t)
+    (yas-minor-mode t)
+    (aggressive-indent-mode t)
+    (evil-define-key 'insert 'local (kbd "(") 'paredit-open-round)
+    (evil-define-key 'insert 'local (kbd "{") 'paredit-open-curly)
+    (evil-define-key 'insert 'local (kbd "[") 'paredit-open-square)
+    (evil-define-key 'insert 'local (kbd ")") 'paredit-close-round)
+    (evil-define-key 'insert 'local (kbd "}") 'paredit-close-curly)
+    (evil-define-key 'insert 'local (kbd "]") 'paredit-close-square))
+
+  (add-hook 'clojure-mode-hook 'my-clojure-stuff)
+  (add-hook 'cider-mode-hook #'company-mode)
+  (add-hook 'cider-repl-mode-hook #'company-mode)
+  (add-hook 'cider-repl-mode-hook #'paredit-mode)
+  (add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff))
 
 ;; =======================================================================
 ;; CLANG FORMAT
@@ -449,6 +514,7 @@
   :ensure t
   :config (use-package yasnippet-snippets :ensure t)
   (yas-global-mode 1)
+  (define-key yas-minor-mode-map (kbd "C-c &") nil)
   (evil-define-key 'insert 'global (kbd "C-x y y") 'yas-expand)
   (evil-define-key 'insert 'global (kbd "C-x y c") 'company-yasnippet)
   (evil-define-key 'insert 'global (kbd "C-x y n") 'yas-next-field)
@@ -463,21 +529,21 @@
 ;; =======================================================================
 ;; IRONY
 ;; =======================================================================
-(use-package irony
-  :ensure t
-  :defer t
-  :init
-  (add-hook 'c++-mode-hook 'irony-mode)
-  (add-hook 'c-mode-hook 'irony-mode)
-  (setq-default irony-cdb-compilation-databases '(irony-cdb-libclang irony-cdb-json irony-cdb-clang-complete))
-  :config
-  (defun my-irony-mode-hook ()
-    (define-key irony-mode-map [remap completion-at-point] 'irony-completion-at-point-async)
-    (define-key irony-mode-map [remap complete-symbol] 'irony-completion-at-point-async))
-   (add-hook 'irony-mode-hook 'my-irony-mode-hook)
-   (add-hook 'irony-mode-hook 'irony-cdb-autosetup-compile-options)
-   (add-hook 'irony-mode-hook 'company-irony-setup-begin-commands)
-   (add-hook 'irony-mode-hook #'irony-eldoc))
+;; (use-package irony
+;;   :ensure t
+;;   :defer t
+;;   :init
+;;   (add-hook 'c++-mode-hook 'irony-mode)
+;;   (add-hook 'c-mode-hook 'irony-mode)
+;;   (setq-default irony-cdb-compilation-databases '(irony-cdb-libclang irony-cdb-json irony-cdb-clang-complete))
+;;   :config
+;;   (defun my-irony-mode-hook ()
+;;     (define-key irony-mode-map [remap completion-at-point] 'irony-completion-at-point-async)
+;;     (define-key irony-mode-map [remap complete-symbol] 'irony-completion-at-point-async))
+;;    (add-hook 'irony-mode-hook 'my-irony-mode-hook)
+;;    (add-hook 'irony-mode-hook 'irony-cdb-autosetup-compile-options)
+;;    (add-hook 'irony-mode-hook 'company-irony-setup-begin-commands)
+;;    (add-hook 'irony-mode-hook #'irony-eldoc))
 (use-package company
   :ensure t
   :defer t
@@ -496,25 +562,24 @@
 	company-minimum-prefix-length 0
 	company-show-numbers nil
 	company-tooltip-limit 20
-	company-dabbrev-downcase nil)
-  (use-package company-irony
-    :ensure t
-    :defer t
-    :config
-    (setq company-irony-ignore-case 'smart)
-    (add-to-list 'company-backends 'company-irony)
-    (use-package company-c-headers
-      :ensure t
-      :functions irony--extract-user-search-paths company-c-headers
-      :preface
-      (defun company-c-headers-path-user-irony ()
-	"Return the user include paths for the current buffer."
-	(when irony-mode
-	  (irony--extract-user-search-paths irony--compile-options irony--working-directory)))
-      :config
-      (setq company-c-headers-path-user #'company-c-headers-path-user-irony)
-      (add-to-list 'company-backends #'company-c-headers)))
-)
+	company-dabbrev-downcase nil))
+  ;; (use-package company-irony
+  ;;   :ensure t
+  ;;   :defer t
+  ;;   :config
+  ;;   (setq company-irony-ignore-case 'smart)
+  ;;   (add-to-list 'company-backends 'company-irony)
+  ;;   (use-package company-c-headers
+  ;;     :ensure t
+  ;;     :functions irony--extract-user-search-paths company-c-headers
+  ;;     :preface
+  ;;     (defun company-c-headers-path-user-irony ()
+  ;;   "Return the user include paths for the current buffer."
+  ;;   (when irony-mode
+  ;;     (irony--extract-user-search-paths irony--compile-options irony--working-directory)))
+  ;;     :config
+  ;;     (setq company-c-headers-path-user #'company-c-headers-path-user-irony)
+  ;;     (add-to-list 'company-backends #'company-c-headers)))
 
 ;; =======================================================================
 ;; PROJECTILE
