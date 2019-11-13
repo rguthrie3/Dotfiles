@@ -328,12 +328,13 @@
   (setq clojure-indent-style 'align-arguments)
   (setq clojure-align-forms-automatically t)
 
-  (use-package clj-refactor :ensure t)
-  (use-package cljr-helm :ensure t)
-
   (use-package cider
     :ensure t
     :config
+    (use-package clj-refactor :ensure t)
+    (use-package cljr-helm :ensure t)
+    (use-package helm-cider :ensure t :config (helm-cider-mode t))
+
     (setq cider-repl-display-in-current-window t)
     ;; Unbind certain things that we don't use (so which-key is more useful)
     (define-key clojure-mode-map (kbd "C-c M-c") nil) ; connect
@@ -410,11 +411,13 @@
     (let ((my-cljr-refactor-map)
           (my-cljr-refactor-rename-map)
           (my-cljr-refactor-let-map)
-          (my-cljr-refactor-cycle-map))
+          (my-cljr-refactor-cycle-map)
+          (my-cljr-refactor-add-map))
       (define-prefix-command 'my-cljr-refactor-map)
       (define-prefix-command 'my-cljr-refactor-rename-map)
       (define-prefix-command 'my-cljr-refactor-let-map)
       (define-prefix-command 'my-cljr-refactor-cycle-map)
+      (define-prefix-command 'my-cljr-refactor-add-map)
       ;; Renaming refactorings C-c r r
       (define-key my-cljr-refactor-rename-map (kbd "f") 'cljr-rename-file-or-dir)
       (define-key my-cljr-refactor-rename-map (kbd "s") 'cljr-rename-symbol)
@@ -431,6 +434,11 @@
       (define-key my-cljr-refactor-cycle-map (kbd "n") 'clojure-cycle-not)
       (define-key my-cljr-refactor-cycle-map (kbd "i") 'clojure-cycle-if)
       (define-key my-cljr-refactor-map (kbd "c") 'my-cljr-refactor-cycle-map)
+      ;; Add C-c r a
+      (define-key my-cljr-refactor-add-map (kbd "r") 'cljr-add-require-to-ns)
+      (define-key my-cljr-refactor-add-map (kbd "d") 'cljr-add-project-dependency)
+      (define-key my-cljr-refactor-add-map (kbd "l") 'cljr-add-declaration)
+      (define-key my-cljr-refactor-map (kbd "a") 'my-cljr-refactor-add-map)
 
       (define-key clojure-mode-map (kbd "C-c r") 'my-cljr-refactor-map)))
 
@@ -557,7 +565,6 @@
   (define-key company-active-map (kbd "C-n") 'company-select-next)
   (define-key company-active-map (kbd "C-p") 'company-select-previous)
   (define-key company-active-map (kbd "C-w") 'backward-kill-word)
-  (add-to-list 'company-backends 'company-yasnippet)
   (setq company-idle-delay 0.1
 	company-minimum-prefix-length 0
 	company-show-numbers nil
@@ -613,7 +620,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (aggressive-indent clj-refactor hydra cider rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil))))
+    (helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
