@@ -444,6 +444,7 @@
       (define-key my-cljr-refactor-add-map (kbd "r") 'cljr-add-require-to-ns)
       (define-key my-cljr-refactor-add-map (kbd "d") 'cljr-add-project-dependency)
       (define-key my-cljr-refactor-add-map (kbd "l") 'cljr-add-declaration)
+      (define-key my-cljr-refactor-add-map (kbd "a") 'cljr-add-missing-libspec)
       (define-key my-cljr-refactor-map (kbd "a") 'my-cljr-refactor-add-map)
 
       (define-key clojure-mode-map (kbd "C-c r") 'my-cljr-refactor-map)))
