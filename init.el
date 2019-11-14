@@ -8,9 +8,9 @@
 ;; C-a Tmux prefix
 ;; C-c CIDER
 ;; C-e Paredit
+;; C-s Tab hydra (can be replaced)
 ;;
 ;; Available:
-;; C-s
 ;; C-q
 ;; C-t 
 ;; C-y
@@ -73,8 +73,12 @@
     :ensure t
     :config
     (evil-tabs-mode)
-    (evil-define-key 'motion 'global (kbd "g t") 'evil-tabs-goto-tab)
-    (evil-define-key 'motion 'global (kbd "g T") 'elscreen-previous))
+    ;; Usual vim keys
+    (evil-define-key '(normal  motion) 'global (kbd "g t") 'evil-tabs-goto-tab)
+    (evil-define-key '(normal motion) 'global (kbd "g T") 'elscreen-previous)
+    ;; More convenient/repeatable keys
+    (evil-define-key '(normal motion insert) 'global (kbd "M-h") 'elscreen-previous)
+    (evil-define-key '(normal motion insert) 'global (kbd "M-l") 'evil-tabs-goto-tab))
   (defun evil-tab-sensitive-quit ()
     (interactive)
     (require 'evil)
@@ -121,7 +125,7 @@
   ("h" (evil-window-decrease-width 5) "decrease-width")
   ("l" (evil-window-increase-width 5) "increase-width"))
 
-(defhydra hydra-tabs (global-map "C-x n")
+(defhydra hydra-tabs (global-map "C-s")
   "switch tabs"
   ("l" evil-tabs-goto-tab "next-tab")
   ("h" elscreen-previous "prev-tab"))
@@ -395,7 +399,8 @@
       (define-key cider-mode-map (kbd "C-c f") 'my-cider-format-map))
 
     ;; Documentation: C-c C-d (by default), C-c d
-    (define-key cider-doc-map (kbd "c") 'clojure-view-cheatsheet)
+    (define-key cider-doc-map (kbd "c") 'cider-cheatsheet)
+    (define-key cider-doc-map (kbd "C") 'helm-cider-cheatsheet)
     (define-key cider-mode-map (kbd "C-c d") 'cider-doc-map)
 
     ;; Namespacing
@@ -426,6 +431,7 @@
       (define-key my-cljr-refactor-let-map (kbd "i") 'clojure-introduce-let)
       (define-key my-cljr-refactor-let-map (kbd "m") 'clojure-move-to-let)
       (define-key my-cljr-refactor-let-map (kbd "r") 'cljr-remove-let)
+      (define-key my-cljr-refactor-let-map (kbd "e") 'cljr-expand-let)
       (define-key my-cljr-refactor-map (kbd "l") 'my-cljr-refactor-let-map)
       ;; Inline symbol C-c r i
       (define-key my-cljr-refactor-map (kbd "i") 'cljr-inline-symbol)
@@ -513,10 +519,13 @@
   :ensure t
   :config (which-key-mode t))
 
-(use-package evil-easymotion
+(use-package ace-jump-mode
   :ensure t
   :config
-  (evilem-default-keybindings "SPC"))
+  (evil-define-key 'normal 'global (kbd "SPC SPC") 'ace-jump-mode)
+  (evil-define-key 'normal 'global (kbd "SPC w") 'ace-jump-word-mode)
+  (evil-define-key 'normal 'global (kbd "SPC c") 'ace-jump-char-mode)
+  (evil-define-key 'normal 'global (kbd "SPC l") 'ace-jump-line-mode))
 
 (use-package yasnippet
   :ensure t
@@ -620,7 +629,7 @@
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
    (quote
-    (helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil))))
+    (ace-jump-mode ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
