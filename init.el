@@ -125,11 +125,6 @@
   ("h" (evil-window-decrease-width 5) "decrease-width")
   ("l" (evil-window-increase-width 5) "increase-width"))
 
-(defhydra hydra-tabs (global-map "C-s")
-  "switch tabs"
-  ("l" evil-tabs-goto-tab "next-tab")
-  ("h" elscreen-previous "prev-tab"))
-
 ;; =======================================================================
 ;; CLEAN UP STANDARD EMACS CONF
 ;; =======================================================================
@@ -159,6 +154,9 @@
 ;; =======================================================================
 ;; Load colorscheme
 (load-theme 'darcula t)
+
+;; Disable to tool bar in gui mode (useless and takes tons of space)
+(tool-bar-mode -1)
 
 ;; Disable annoying bell
 (setq ring-bell-function 'ignore)
@@ -497,6 +495,7 @@
   :config (helm-mode)
   (evil-define-key 'normal 'global (kbd "C-x C-f") 'helm-find-files)
   (evil-define-key 'normal 'global (kbd "C-f") 'helm-find-files)
+  (define-key helm-find-files-map (kbd "TAB") 'helm-execute-persistent-action)
   (evil-define-key '(normal motion) 'global (kbd "C-x b") 'helm-apropos)
   (evil-define-key '(insert normal motion) 'global "\M-x" 'helm-M-x)
   ;; C-w to kill word when doing a helm search
@@ -533,10 +532,10 @@
   :config (use-package yasnippet-snippets :ensure t)
   (yas-global-mode 1)
   (define-key yas-minor-mode-map (kbd "C-c &") nil)
-  (evil-define-key 'insert 'global (kbd "C-x y y") 'yas-expand)
-  (evil-define-key 'insert 'global (kbd "C-x y c") 'company-yasnippet)
-  (evil-define-key 'insert 'global (kbd "C-x y n") 'yas-next-field)
-  (evil-define-key 'insert 'global (kbd "C-x y p") 'yas-prev-field))
+  (evil-define-key 'insert 'global (kbd "M-y y") 'yas-expand)
+  (evil-define-key 'insert 'global (kbd "M-y c") 'company-yasnippet)
+  (evil-define-key 'insert 'global (kbd "M-y n") 'yas-next-field)
+  (evil-define-key 'insert 'global (kbd "M-y p") 'yas-prev-field))
 
 (use-package evil-magit
   :ensure t
@@ -575,8 +574,8 @@
   (define-key company-active-map (kbd "C-n") 'company-select-next)
   (define-key company-active-map (kbd "C-p") 'company-select-previous)
   (define-key company-active-map (kbd "C-w") 'backward-kill-word)
-  (setq company-idle-delay 0.1
-	company-minimum-prefix-length 0
+  (setq company-idle-delay 0.2
+	company-minimum-prefix-length 1
 	company-show-numbers nil
 	company-tooltip-limit 20
 	company-dabbrev-downcase nil))
