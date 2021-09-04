@@ -63,12 +63,43 @@
   (interactive)
   (load-file "~/.emacs.d/init.el"))
 
+(defun kill-this-buffer-and-close-window ()
+  (interactive)
+  (kill-this-buffer)
+  (evil-tab-sensitive-quit))
+
+(defun vterm-horizontally-in-new-window ()
+  (interactive)
+  (split-horizontally-and-move-to-window)
+  (multi-vterm))
+
+(defun vterm-move-to-start-of-prompt ()
+  (interactive)
+  (evil-first-non-blank)
+  (evil-find-char 1 ?$)
+  (evil-forward-char))
+
 ;; =======================================================================
 ;; EVIL
 ;; =======================================================================
+(use-package undo-tree
+  :ensure t
+  :config
+  (global-undo-tree-mode))
+
+(setq evil-want-keybinding nil)
 (use-package evil
   :ensure t
-  :config (evil-mode)
+  :config
+  (evil-mode)
+
+  (use-package evil-collection
+    :after evil
+    :ensure t
+    :config
+                                        ;(evil-collection-init 'vterm)
+    (evil-collection-init 'debug))
+
   (use-package evil-tabs
     :ensure t
     :config
@@ -94,12 +125,21 @@
   (evil-define-key '(normal motion) 'global "\C-j" 'windmove-down)
   (evil-define-key '(normal motion) 'global "\C-h" 'windmove-left)
   (evil-define-key '(normal motion insert) 'global (kbd "C-x w") 'delete-other-windows)
-  (evil-define-key '(normal motion) 'global (kbd "C-w") nil)
 
+  ;; Scrolling
   (evil-define-key '(normal motion) 'global "\C-d" 'evil-scroll-down)
   (evil-define-key '(normal motion) 'global "\C-u" 'evil-scroll-up)
   (evil-define-key '(normal motion) 'global (kbd "0") 'evil-first-non-blank)
   (evil-define-key 'insert 'global "\C-w" 'evil-delete-backward-word)
+
+  ;; Text movement/editing
+  (evil-define-key '(normal motion) 'global (kbd "0") 'evil-first-non-blank)
+  (evil-define-key 'insert 'global (kbd "C-w") 'evil-delete-backward-word)
+  (evil-define-key '(normal motion) 'global (kbd "'") 'evil-repeat-find-char-reverse)
+
+  ;; Unbind some completion stuff (apparently these sometimes overwrite company-complete stuff set below)
+  (evil-define-key 'insert 'global (kbd "C-n") nil)
+  (evil-define-key 'insert 'global (kbd "C-p") nil)
 
   ;; Old vim prefix
   (evil-define-key '(normal motion) 'global (kbd ",") nil)
@@ -111,6 +151,24 @@
   (evil-define-key 'normal 'global (kbd ",v") 'split-vertically-and-move-to-window)
   (evil-define-key 'normal 'global (kbd ",c") 'comment-or-uncomment-region)
   (evil-define-key 'normal 'global (kbd ",m") 'compile))
+
+;; =======================================================================
+;; VTerm
+;; Needs --with-native-compilation in emacs build
+;; =======================================================================
+;; (use-package vterm
+;;   :ensure t
+;;   :config
+;;   (defun kill-vterm-buffers ()
+;;     (interactive)
+;;     (kill-some-buffers (seq-filter (lambda (b)
+;;                                      (string-match-p "^\\*vterm" (buffer-name b)))
+;;                                    (buffer-list))))
+;;   (evil-define-key '(normal motion) vterm-mode-map (kbd "0") 'vterm-move-to-start-of-prompt)
+;;   (evil-define-key '(normal motion) 'global (kbd "SPC v") 'vterm-other-window)
+;;   (evil-define-key '(normal motion) 'global (kbd "SPC M") 'multi-vterm)
+;;   (evil-define-key '(normal motion) 'global (kbd "SPC m") 'vterm-horizontally-in-new-window)
+;;   (evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer))
 
 ;; =======================================================================
 ;; HYDRA
@@ -148,6 +206,23 @@
 
 ;; Better switch to buffer binding
 (evil-define-key '(normal motion) 'global (kbd "C-b") 'switch-to-buffer)
+
+;; Kill buffer with processes open
+(define-key global-map (kbd "C-x C-k") 'kill-this-buffer-and-close-window)
+
+;; Rebind universal arg
+(define-key global-map (kbd "M-u") 'universal-argument)
+
+;; Find in directory
+(define-key global-map (kbd "C-x f") 'find-name-dired)
+
+;; Make/delete frames
+(evil-define-key '(normal motion) 'global (kbd "SPC") nil)
+(evil-define-key '(normal motion) 'global (kbd "SPC f f") 'make-frame)
+(evil-define-key '(normal motion) 'global (kbd "SPC f x") 'delete-frame)
+
+;; Xref
+(evil-define-key '(normal motion) 'global (kbd "C-t") 'xref-find-references)
 
 ;; =======================================================================
 ;; STANDARD EMACS CONFIGS
@@ -210,6 +285,8 @@
 (define-key global-map (kbd "C-x m") 'compile)
 (define-key compilation-mode-map (kbd "g") nil)
 (define-key compilation-mode-map (kbd "r") 'recompile)
+(define-key compilation-mode-map (kbd "n") 'evil-search-next)
+(define-key compilation-mode-map (kbd "N") 'evil-search-previous)
 
 ;; Always display certain buffers in a new window
 (setq display-buffer-alist '(("\\*cider-error\\*"
@@ -217,6 +294,10 @@
                               ())))
 (setq split-width-threshold 1)
 (setq split-height-threshold 1)
+
+;; Grep ignore directories
+(require 'grep)
+(add-to-list 'grep-find-ignored-directories "doxygen")
 
 ;; =======================================================================
 ;; DIRED
@@ -289,40 +370,49 @@
 ;; =======================================================================
 ;; CLOJURE
 ;; =======================================================================
-;; Useful paredit hydra that puts everything under one prefix
-(defhydra hydra-paredit (global-map "C-e")
-  "paredit"
-  ("l" paredit-forward-slurp-sexp "slurp-forward")
-  ("L" paredit-forward-barf-sexp "barf-forward")
-  ("h" paredit-backward-slurp-sexp "slurp-backward")
-  ("H" paredit-backward-barf-sexp "barf-backward")
-  ("9" paredit-wrap-round "wrap-round")
-  ("0" paredit-wrap-round "wrap-round")
-  ("{" paredit-wrap-curly "wrap-curly")
-  ("[" paredit-wrap-square "wrap-square")
-  ("f" paredit-forward "forward")
-  ("F j" paredit-forward-down "forward-down")
-  ("F k" paredit-forward-up "forward-up")
-  ("b" paredit-backward "backward")
-  ("B j" paredit-backward-down "backward-down")
-  ("B k" paredit-backward-up "backward-up")
-  ("s" paredit-splice-sexp "splice")
-  ("t" transpose-sexps "transpose")
-  ("j" paredit-join-sexps "join")
-  ("r" raise-sexp "join")
-  ("k" kill-sexp "kill"))
+(use-package smartparens
+  :ensure t
+  :config
+  (sp-pair "'" nil :actions :rem)
+  (sp-pair "(" nil :unless '(sp-in-string-p))
+  (sp-pair "\\(" nil :unless '(sp-in-string-p))
+
+  (defhydra hydra-smartparens (smartparens-mode-map "C-e")
+    "smartparens"
+    ("f" sp-forward-slurp-sexp "slurp-forward")
+    ("F" sp-forward-barf-sexp "barf-forward")
+    ("b" sp-backward-slurp-sexp "slurp-backward")
+    ("B" sp-backward-barf-sexp "barf-backward")
+    ("l" sp-forward-sexp "forward")
+    ("k" sp-up-sexp "forward-up")
+    ("j" sp-down-sexp "forward-down")
+    ("h" sp-backward-sexp "backward")
+    ("K" sp-backward-up-sexp "backward-up")
+    ("J" sp-backward-down-sexp "backward-down")
+    ("L" sp-next-sexp "next")
+    ("H" sp-previous-sexp "previous")
+    ("0" sp-beginning-of-sexp "beginning")
+    ("$" sp-end-of-sexp "end")
+    ("x" sp-kill-sexp "forward-kill")
+    ("X" sp-backward-kill-sexp "backward-kill")
+    ("y" sp-copy-sexp "copy-forward")
+    ("Y" sp-backward-copy-sexp "copy-backward")
+    ("s" sp-splice-sexp "splice")
+    ("t" sp-transpose-sexp "transpose"))
+  (evil-define-key '(normal insert visual motion) 'global (kbd "C-e") 'hydra-smartparens/body)
+
+  (use-package evil-smartparens
+    :ensure t
+    :config
+    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode)))
 
 (use-package rainbow-delimiters :ensure t)
-
-;; Makes normal mode operations preserve paren balance
-(use-package paredit
-  :config
-  (use-package evil-paredit :ensure t)
-
-  ;; Paredit in emacs lisp
-  (add-hook 'emacs-lisp-mode-hook (lambda () (rainbow-delimiters-mode) (paredit-mode) (evil-paredit-mode))))
-
 (use-package aggressive-indent :ensure t)
+
+(defun my-elisp-stuff ()
+  (smartparens-strict-mode t)
+  (aggressive-indent-mode t))
+(add-hook 'emacs-lisp-mode-hook #'my-elisp-stuff)
 
 (use-package clojure-mode
   :ensure t
@@ -455,21 +545,15 @@
   (defun my-clojure-stuff ()
     (rainbow-delimiters-mode t) ; Highlight matching parens
     (cider-mode t)
-    (paredit-mode t)
+    (smartparens-strict-mode t)
     (clj-refactor-mode t)
     (yas-minor-mode t)
-    (aggressive-indent-mode t)
-    (evil-define-key 'insert 'local (kbd "(") 'paredit-open-round)
-    (evil-define-key 'insert 'local (kbd "{") 'paredit-open-curly)
-    (evil-define-key 'insert 'local (kbd "[") 'paredit-open-square)
-    (evil-define-key 'insert 'local (kbd ")") 'paredit-close-round)
-    (evil-define-key 'insert 'local (kbd "}") 'paredit-close-curly)
-    (evil-define-key 'insert 'local (kbd "]") 'paredit-close-square))
+    (aggressive-indent-mode t))
 
   (add-hook 'clojure-mode-hook 'my-clojure-stuff)
   (add-hook 'cider-mode-hook #'company-mode)
   (add-hook 'cider-repl-mode-hook #'company-mode)
-  (add-hook 'cider-repl-mode-hook #'paredit-mode)
+  (add-hook 'cider-repl-mode-hook #'smartparens-strict-mode)
   (add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff))
 
 ;; =======================================================================
@@ -493,24 +577,37 @@
 (use-package helm
   :ensure t
   :config (helm-mode)
-  (evil-define-key 'normal 'global (kbd "C-x C-f") 'helm-find-files)
+
+  ;; When doing a helm search want C-w to delete a word
+  (define-key helm-map (kbd "C-w") 'backward-kill-word)
+
+  ;; Helm find file
+  (setq helm-find-files-ignore-thing-at-point t)
   (evil-define-key 'normal 'global (kbd "C-f") 'helm-find-files)
   (define-key helm-find-files-map (kbd "TAB") 'helm-execute-persistent-action)
+  (define-key helm-find-files-map (kbd "C-w") 'helm-find-files-up-one-level)
+
+  ;; Other helm bindings
   (evil-define-key '(normal motion) 'global (kbd "C-x b") 'helm-apropos)
   (evil-define-key '(insert normal motion) 'global "\M-x" 'helm-M-x)
-  ;; C-w to kill word when doing a helm search
-  (define-key helm-map (kbd "C-w") 'backward-kill-word))
+  (evil-define-key '(normal motion) 'global (kbd "C-x C-r") 'helm-resume)
+  (evil-define-key 'normal 'global (kbd "C-x a") 'helm-do-grep-ag)
+  (evil-define-key '(normal motion) 'global (kbd "C-b") 'helm-mini)
 
+  ;; Helm for xref
+  (use-package helm-xref
+    :ensure t)
 
-(use-package helm-swoop
-  :ensure t
-  :config
-  (evil-define-key 'normal 'global (kbd "C-x /") 'helm-swoop)
-  (define-key helm-swoop-map (kbd "C-n") 'helm-next-line)
-  (define-key helm-swoop-map (kbd "C-p") 'helm-previous-line)
-  (setq helm-swoop-split-with-mutiple-windows t)
-  (setq helm-swoop-split-direction 'split-window-vertically)
-  (setq helm-swoop-use-fuzzy-match t))
+  ;; Helm search in a file
+  (use-package helm-swoop
+    :ensure t
+    :config
+    (evil-define-key 'normal 'global (kbd "C-x /") 'helm-swoop)
+    (define-key helm-swoop-map (kbd "C-n") 'helm-next-line)
+    (define-key helm-swoop-map (kbd "C-p") 'helm-previous-line)
+    (setq helm-swoop-split-with-mutiple-windows t)
+    (setq helm-swoop-split-direction 'split-window-vertically)
+    (setq helm-swoop-use-fuzzy-match t)))
   
 ;; =======================================================================
 ;; OTHER PKGS
@@ -519,13 +616,13 @@
   :ensure t
   :config (which-key-mode t))
 
-(use-package ace-jump-mode
-  :ensure t
-  :config
-  (evil-define-key 'normal 'global (kbd "SPC SPC") 'ace-jump-mode)
-  (evil-define-key 'normal 'global (kbd "SPC w") 'ace-jump-word-mode)
-  (evil-define-key 'normal 'global (kbd "SPC c") 'ace-jump-char-mode)
-  (evil-define-key 'normal 'global (kbd "SPC l") 'ace-jump-line-mode))
+;; (use-package ace-jump-mode
+;;   :ensure t
+;;   :config
+;;   (evil-define-key 'normal 'global (kbd "SPC SPC") 'ace-jump-mode)
+;;   (evil-define-key 'normal 'global (kbd "SPC w") 'ace-jump-word-mode)
+;;   (evil-define-key 'normal 'global (kbd "SPC c") 'ace-jump-char-mode)
+;;   (evil-define-key 'normal 'global (kbd "SPC l") 'ace-jump-line-mode))
 
 (use-package yasnippet
   :ensure t
@@ -610,14 +707,17 @@
   (define-key projectile-mode-map (kbd "C-p") 'projectile-command-map)
 
   ;; Open dired at root by just typing D
-  (evil-define-key 'normal 'global (kbd "D") 'projectile-dired))
+  (evil-define-key 'normal 'global (kbd "D") 'projectile-dired)
 
-(use-package helm-projectile
-  :ensure t
-  :config
-  (helm-projectile-on)
-  (setq projectile-completion-system 'helm))
+  (use-package helm-projectile
+    :ensure t
+    :config
+    (helm-projectile-on)
+    (setq projectile-completion-system 'helm))
 
+  (evil-define-key 'normal 'global (kbd "SPC s") 'helm-projectile-ag)
+  (evil-define-key 'normal 'global (kbd "SPC d") 'helm-projectile-find-file)
+  (evil-define-key 'normal 'global (kbd "SPC t") 'projectile-find-tag))
 
 ;; =======================================================================
 ;; Generated!
@@ -628,8 +728,7 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  '(package-selected-packages
-   (quote
-    (ace-jump-mode ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil))))
+   '(cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
