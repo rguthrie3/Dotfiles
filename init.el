@@ -423,11 +423,12 @@
   (use-package cider
     :ensure t
     :config
+    (setq cider-show-error-buffer nil)
+
     (use-package clj-refactor :ensure t)
     (use-package cljr-helm :ensure t)
     (use-package helm-cider :ensure t :config (helm-cider-mode t))
 
-    (setq cider-repl-display-in-current-window t)
     ;; Unbind certain things that we don't use (so which-key is more useful)
     (define-key clojure-mode-map (kbd "C-c M-c") nil) ; connect
     (define-key clojure-mode-map (kbd "C-c M-C") nil) ; connect
@@ -451,6 +452,7 @@
     (define-key cider-mode-map (kbd "C-c q") 'cider-quit)
     (define-key cider-mode-map (kbd "C-c j") 'cider-jack-in)
     (define-key cider-mode-map (kbd "C-c J") 'cider-jack-in-cljs)
+    (define-key cider-mode-map (kbd "C-c C-f") 'cider-ns-refresh)
 
     ;; Find thing: C-c g
     (let (my-cider-find-map)
@@ -459,6 +461,7 @@
       (define-key my-cider-find-map (kbd "n") 'cider-find-ns)
       (define-key my-cider-find-map (kbd "r") 'cider-find-resource)
       (define-key my-cider-find-map (kbd "k") 'cider-find-keyword)
+      (define-key my-cider-find-map (kbd "u") 'cljr-find-usages)
       (define-key cider-mode-map (kbd "C-c g") 'my-cider-find-map))
 
     ;; Expression evaluation: C-c e
@@ -486,6 +489,14 @@
       (define-key my-cider-format-map (kbd "f") 'cider-format-defun)
       (define-key cider-mode-map (kbd "C-c f") 'my-cider-format-map))
 
+    ;; Namespace
+    (let (my-cider-ns-map)
+      (define-prefix-command 'my-cider-ns-map)
+      (define-key my-cider-ns-map (kbd "b") 'cider-browse-ns)
+      (define-key my-cider-ns-map (kbd "n") 'cider-repl-set-ns)
+      (define-key my-cider-ns-map (kbd "r") 'cider-ns-reload-all)
+      (define-key cider-mode-map (kbd "C-c n") 'my-cider-ns-map))
+
     ;; Documentation: C-c C-d (by default), C-c d
     (define-key cider-doc-map (kbd "c") 'cider-cheatsheet)
     (define-key cider-doc-map (kbd "C") 'helm-cider-cheatsheet)
@@ -505,12 +516,14 @@
           (my-cljr-refactor-rename-map)
           (my-cljr-refactor-let-map)
           (my-cljr-refactor-cycle-map)
-          (my-cljr-refactor-add-map))
+          (my-cljr-refactor-add-map)
+          (my-cljr-refactor-thread-map))
       (define-prefix-command 'my-cljr-refactor-map)
       (define-prefix-command 'my-cljr-refactor-rename-map)
       (define-prefix-command 'my-cljr-refactor-let-map)
       (define-prefix-command 'my-cljr-refactor-cycle-map)
       (define-prefix-command 'my-cljr-refactor-add-map)
+      (define-prefix-command 'my-cljr-refactor-thread-map)
       ;; Renaming refactorings C-c r r
       (define-key my-cljr-refactor-rename-map (kbd "f") 'cljr-rename-file-or-dir)
       (define-key my-cljr-refactor-rename-map (kbd "s") 'cljr-rename-symbol)
@@ -533,7 +546,16 @@
       (define-key my-cljr-refactor-add-map (kbd "d") 'cljr-add-project-dependency)
       (define-key my-cljr-refactor-add-map (kbd "l") 'cljr-add-declaration)
       (define-key my-cljr-refactor-add-map (kbd "a") 'cljr-add-missing-libspec)
+      (define-key my-cljr-refactor-add-map (kbd "f") 'clojure-add-arity)
       (define-key my-cljr-refactor-map (kbd "a") 'my-cljr-refactor-add-map)
+      ;; Thread C-c t
+      (define-key my-cljr-refactor-thread-map (kbd "f") 'cljr-thread-first-all)
+      (define-key my-cljr-refactor-thread-map (kbd "l") 'cljr-thread-last-all)
+      (define-key my-cljr-refactor-map (kbd "t") 'my-cljr-refactor-thread-map)
+      ;; Clean NS C-c n
+      (define-key my-cljr-refactor-map (kbd "n") 'cljr-clean-ns)
+      ;; Move to new ns C-c m
+      (define-key my-cljr-refactor-map (kbd "m") 'cljr-move-form)
 
       (define-key clojure-mode-map (kbd "C-c r") 'my-cljr-refactor-map)))
 
@@ -541,6 +563,13 @@
     (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
     (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
     (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
+
+  (defun my-clojure-shortcuts ()
+    (evil-define-key '(normal motion) 'local (kbd "SPC f") 'cider-find-var)
+    (evil-define-key '(normal motion) 'local (kbd "SPC r") 'cider-switch-to-repl-buffer)
+    (evil-define-key '(normal motion) 'local (kbd "SPC l") 'cider-eval-buffer)
+    (evil-define-key '(normal motion) 'local (kbd "SPC n") 'cider-repl-set-ns)
+    (evil-define-key '(normal motion) 'local (kbd "SPC d") 'cider-doc))
 
   (defun my-clojure-stuff ()
     (rainbow-delimiters-mode t) ; Highlight matching parens
@@ -551,6 +580,7 @@
     (aggressive-indent-mode t))
 
   (add-hook 'clojure-mode-hook 'my-clojure-stuff)
+  (add-hook 'clojure-mode-hook #'my-clojure-shortcuts)
   (add-hook 'cider-mode-hook #'company-mode)
   (add-hook 'cider-repl-mode-hook #'company-mode)
   (add-hook 'cider-repl-mode-hook #'smartparens-strict-mode)
@@ -663,6 +693,8 @@
   :defer t
   :init (add-hook 'after-init-hook 'global-company-mode)
   :config
+  (evil-define-key 'insert 'global (kbd "C-n") nil)
+  (evil-define-key 'insert 'global (kbd "C-p") nil)
   (define-key company-active-map (kbd "RET") nil)
   (define-key company-active-map (kbd "<return>") nil)
   (define-key company-active-map (kbd "<backtab>") 'company-complete-common)
