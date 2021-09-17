@@ -42,6 +42,8 @@ call pathogen#helptags()
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable filetype plugins
 filetype plugin on
+filetype indent on
+filetype plugin indent on
 
 " Map leader to ,
 let mapleader = ","
@@ -157,8 +159,8 @@ set smarttab
 set shiftwidth=4
 set tabstop=4
 
-set autoindent
-set smartindent
+"set smartindent
+"set cindent
 
 " Long lines wrap to the next line
 set wrap
@@ -197,6 +199,9 @@ map <leader>te :tabedit <c-r>=expand("%:p:h")<cr>/<cr>
 
 " Specify the behavior when switching between buffers
 set switchbuf=useopen,newtab
+
+" Mappings to open the location list
+map <leader>l :lopen<cr>
 
 " Return to last edit position when opening files
 autocmd BufReadPost *
@@ -312,8 +317,7 @@ map <leader>o :BufExplorer<cr>
 let g:ctrlp_working_path_mode = 0
 
 let g:ctrlp_map = '<c-f>'
-map <leader>j :CtrlP<cr>
-map <leader>J :CtrlPTag<cr>
+map <C-p> :CtrlP<cr>
 
 let g:ctrlp_max_height = 20
 let g:ctrlp_custom_ignore = {
@@ -339,7 +343,7 @@ let g:airline_theme="base16_chalk"
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Neomake (syntax checker)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-autocmd BufWritePost * Neomake
+"autocmd BufWritePost * Neomake
 let s:pwd = getcwd()
 " Make config
 let g:neomake_make_maker = {
@@ -400,29 +404,15 @@ nnoremap <leader>y :TlistOpen<CR>
 " a list
 nnoremap <C-]> g<C-]>
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Commentary
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 noremap <leader>cc :Commentary<cr>
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Easy Motion
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 map <space> <Plug>(easymotion-bd-w)
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => LaTeX
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let g:tex_flavor='latex'
-autocmd FileType tex set spell wrap linebreak
-let g:LatexBox_latexmk_async=1
-let g:LatexBox_latexmk_preview_continuously=1
-let g:LatexBox_quickfix=2
-let g:LaTeXBox_output_type='' "Let latexmkrc choose the type
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => YouCompleteMe
@@ -436,18 +426,17 @@ let g:haskellmode_completion_ghc = 0
 autocmd FileType haskell setlocal omnifunc=necoghc#omnifunc
 let g:ycm_semantic_triggers = {'haskell' : ['.']}
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => UltiSnips
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let g:UltiSnipsExpandTrigger="<c-j>"
-
+let g:UltiSnipsJumpForwardTrigger="<c-j>"
+let g:UltiSnipsJumpBackwardTrigger="<c-k>"
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Cscope
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 nnoremap <leader>cs :call CscopeFindInteractive(expand('<cword>'))<CR>
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Ack

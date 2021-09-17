@@ -36,18 +36,16 @@ export TERM="xterm-256color"
 
 # Aliases
 alias ll="ls -lah"
-alias gas="as"
-alias cdp="cd \${OLDPWD}"
-alias make="make -j 8"
 
 # Paths
-export PATH=/usr/local/bin:/opt/cuda/bin:$PATH # TODO remove
-export LD_LIBRARY_PATH=/opt/cuda/lib64:$LD_LIBRARY_PATH # TODO remove
-export LD_LIBRARY_PATH=/home/rguthrie/Packages/boost_1_60_0/stage/lib:$LD_LIBRARY_PATH # for Dynet (doesnt like boost 1.62)
-export LD_LIBRARY_PATH=/home/rguthrie/Packages/dynet/build/dynet:$LD_LIBRARY_PATH
-export CLASSPATH="/home/rguthrie/Packages/stanford-corenlp-full-2016-10-31/*:${CLASSPATH}"
+export PATH="${PATH}:/home/rguthrie/Programming/Repos/llvm/build/bin"
+export PATH="/home/rguthrie/.local/bin:${PATH}"
 
 source $ZSH/oh-my-zsh.sh
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source $HOME/Packages/z/z.sh
-source /usr/share/zsh/scripts/zplug/init.zsh
+
+# Emacs
+alias em="emacsclient -t"
+function emg() {
+    emacsclient -c $@ &
+}
