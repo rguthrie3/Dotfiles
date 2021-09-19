@@ -559,7 +559,31 @@
   (sp-pair "(" nil :unless '(sp-in-string-p))
   (sp-pair "\\(" nil :unless '(sp-in-string-p))
 
-  (defhydra hydra-smartparens (smartparens-mode-map "C-e")
+  (add-to-list 'load-path "~/.emacs.d/plugins/normal-state-parens")
+  (require 'normal-state-parens)
+
+  (defhydra hydra-smartparens-normal nil
+    "smartparens-normal"
+    ("f" normal-state-parens-sp-forward-slurp "slurp-forward")
+    ("F" normal-state-parens-sp-forward-barf "barf-forward")
+    ("b" normal-state-parens-sp-backward-slurp "slurp-backward")
+    ("B" normal-state-parens-sp-backward-barf "barf-backward")
+    ("l" normal-state-parens-sp-forward "forward")
+    ("k" normal-state-parens-sp-up "forward-up")
+    ("j" normal-state-parens-sp-down "forward-down")
+    ("h" normal-state-parens-sp-backward "backward")
+    ("K" normal-state-parens-sp-backward-up "backward-up")
+    ("J" normal-state-parens-sp-backward-down "backward-down")
+    ("0" normal-state-parens-sp-beginning "beginning")
+    ("$" normal-state-parens-sp-end "end")
+    ("x" normal-state-parens-sp-kill "forward-kill")
+    ("X" normal-state-parens-sp-backward-kill "backward-kill")
+    ("y" normal-state-parens-sp-yank "copy-forward")
+    ("Y" normal-state-parens-sp-yank-backward "copy-backward")
+    ("s" sp-splice-sexp "splice")
+    ("t" normal-state-parens-sp-transpose "transpose"))
+
+  (defhydra hydra-smartparens-insert nil
     "smartparens"
     ("f" sp-forward-slurp-sexp "slurp-forward")
     ("F" sp-forward-barf-sexp "barf-forward")
@@ -809,7 +833,8 @@
 (evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer)
 
 ;; Smartparens
-(evil-define-key '(normal insert visual motion) 'global (kbd "C-e") 'hydra-smartparens/body)
+(evil-define-key  'insert  'global (kbd "C-e") 'hydra-smartparens-insert/body)
+(evil-define-key '(normal motion visual) 'global (kbd "C-e") 'hydra-smartparens-normal/body)
 
 ;; Compilation
 (evil-define-key '(normal motion) 'global (kbd ",m") 'compile)

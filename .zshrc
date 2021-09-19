@@ -36,6 +36,7 @@ export TERM="xterm-256color"
 
 # Aliases
 alias ll="ls -lah"
+alias qemu="qemu-system-x86_64"
 
 # Paths
 export PATH="${PATH}:/home/rguthrie/Programming/Repos/llvm/build/bin"
