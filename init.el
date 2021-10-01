@@ -109,6 +109,9 @@
 ;; y-or-n
 (defalias 'yes-or-no-p 'y-or-n-p)
 
+;; Don't confirm killing proc buffers
+(setq kill-buffer-query-functions (delq 'process-kill-buffer-query-function kill-buffer-query-functions))
+
 ;; Don't jump the screen when scrolling up or down
 ;; and have 7 lines at the top or bottom when scrolling
 (setq-default scroll-conservatively 10000)
@@ -146,6 +149,11 @@
 
 ;; Make it so that hitting Shift-Backspace doesn't open help menu
 (define-key global-map "\C-h" 'delete-backward-char)
+
+;; Winner
+(setq winner-dont-bind-my-keys t)
+(require 'winner)
+(winner-mode 1)
 
 ;; =======================================================================
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -218,6 +226,9 @@
     ;; Don't want elscreen default prefix
     (define-key global-map (kbd "C-z") nil))
 
+  ;; Normal mode can go to EOL
+  (setq evil-move-beyond-eol t)
+
   ;;Change how evil states are displayed in the mode line
   (setq evil-normal-state-tag "NORMAL")
   (setq evil-motion-state-tag "MOTION")
@@ -247,8 +258,11 @@
 
   ;; Make find-file behave more like terminal bindings
   (define-key helm-find-files-map (kbd "TAB") 'helm-execute-persistent-action)
+  (define-key helm-map (kbd "C-z") 'helm-select-action)
   (define-key helm-find-files-map (kbd "C-<return>") 'helm-ff-run-switch-other-window)
   (define-key helm-find-files-map (kbd "M-<return>") 'helm-ff-run-switch-other-frame)
+  (define-key helm-buffer-map (kbd "C-<return>") 'helm-buffer-switch-other-window)
+  (define-key helm-buffer-map (kbd "M-<return>") 'helm-buffer-switch-other-frame)
   (define-key helm-find-files-map (kbd "C-w") 'helm-find-files-up-one-level)
 
   ;; Dont start the helm search at the file under point
@@ -282,8 +296,12 @@
     (kill-some-buffers (seq-filter (lambda (b)
                                      (string-match-p "^\\*vterm" (buffer-name b)))
                                    (buffer-list))))
-  (evil-define-key '(normal motion) vterm-mode-map (kbd "0") 'robert-vterm-move-to-start-of-prompt)
-  )
+  (evil-define-key 'insert vterm-mode-map (kbd "C-l") 'windmove-right)
+  (evil-define-key 'insert vterm-mode-map (kbd "C-k") 'windmove-up)
+  (evil-define-key 'insert vterm-mode-map (kbd "C-j") 'windmove-down)
+  (evil-define-key 'insert vterm-mode-map (kbd "C-h") 'windmove-left)
+  (evil-define-key '(normal insert motion visual) vterm-mode-map (kbd "C-x ESC") 'vterm-send-escape)
+  (evil-define-key '(normal motion) vterm-mode-map (kbd "0") 'robert-vterm-move-to-start-of-prompt))
 
 ;; =======================================================================
 ;; DIRED
@@ -333,7 +351,14 @@
   (evil-define-key '(normal motion) compilation-mode-map (kbd "C-l") 'windmove-right))
 
 ;; =======================================================================
-;; INFO MODE
+;; PROCESS MENU MODE
+;; =======================================================================
+(defun robert-process-menu-bindings ()
+  (evil-define-key '(normal motion) 'local (kbd "x") 'process-menu-delete-process))
+(add-hook 'process-menu-mode-hook #'robert-process-menu-bindings)
+
+;; =======================================================================
+;; INFO/WOMAN MODE
 ;; =======================================================================
 ;; Don't want my window bindings overriden
 (evil-define-key '(normal motion) Info-mode-map (kbd "C-j") 'windmove-down)
@@ -347,6 +372,9 @@
 (evil-define-key '(normal motion) Info-mode-map (kbd "M-h") 'elscreen-previous)
 (evil-define-key '(normal motion) Info-mode-map (kbd "M-l") 'evil-tabs-goto-tab)
 
+(setq woman-fill-frame 1)
+(setq woman-fill-column 80)
+
 ;; =======================================================================
 ;; HYDRA
 ;; =======================================================================
@@ -359,7 +387,9 @@
   ("j" (evil-window-decrease-height 5) "decrease-height")
   ("h" (evil-window-decrease-width 5) "decrease-width")
   ("l" (evil-window-increase-width 5) "increase-width")
-  ("q" (delete-other-windows) "delete-other-windows" :exit t))
+  ("q" (delete-other-windows) "delete-other-windows" :exit t)
+  ("x" (elscreen-kill) "kill-tab" :exit t)
+  ("b" (balance-windows-area) "balance-area" :exit t))
 
 ;; =======================================================================
 ;; WHICH KEY
@@ -379,15 +409,14 @@
 ;; =======================================================================
 ;; YASNIPPET
 ;; =======================================================================
-;; (use-package yasnippet
-;;   :ensure t
-;;   :config (use-package yasnippet-snippets :ensure t)
-;;   (yas-global-mode 1)
-;;   (define-key yas-minor-mode-map (kbd "C-c &") nil)
-;;   (evil-define-key 'insert 'global (kbd "M-y y") 'yas-expand)
-;;   (evil-define-key 'insert 'global (kbd "M-y c") 'company-yasnippet)
-;;   (evil-define-key 'insert 'global (kbd "M-y n") 'yas-next-field)
-;;   (evil-define-key 'insert 'global (kbd "M-y p") 'yas-prev-field))
+(use-package yasnippet
+  :ensure t
+  :config
+  (yas-global-mode 1)
+  (define-key yas-keymap (kbd "C-f") 'yas-next-field)
+  (define-key yas-keymap (kbd "C-b") 'yas-prev-field)
+  (evil-define-key 'insert 'global (kbd "C-SPC") 'yas-expand)
+  (evil-define-key 'insert 'global (kbd "M-y") 'company-yasnippet))
 
 ;; =======================================================================
 ;; MAGIT
@@ -559,31 +588,7 @@
   (sp-pair "(" nil :unless '(sp-in-string-p))
   (sp-pair "\\(" nil :unless '(sp-in-string-p))
 
-  (add-to-list 'load-path "~/.emacs.d/plugins/normal-state-parens")
-  (require 'normal-state-parens)
-
-  (defhydra hydra-smartparens-normal nil
-    "smartparens-normal"
-    ("f" normal-state-parens-sp-forward-slurp "slurp-forward")
-    ("F" normal-state-parens-sp-forward-barf "barf-forward")
-    ("b" normal-state-parens-sp-backward-slurp "slurp-backward")
-    ("B" normal-state-parens-sp-backward-barf "barf-backward")
-    ("l" normal-state-parens-sp-forward "forward")
-    ("k" normal-state-parens-sp-up "forward-up")
-    ("j" normal-state-parens-sp-down "forward-down")
-    ("h" normal-state-parens-sp-backward "backward")
-    ("K" normal-state-parens-sp-backward-up "backward-up")
-    ("J" normal-state-parens-sp-backward-down "backward-down")
-    ("0" normal-state-parens-sp-beginning "beginning")
-    ("$" normal-state-parens-sp-end "end")
-    ("x" normal-state-parens-sp-kill "forward-kill")
-    ("X" normal-state-parens-sp-backward-kill "backward-kill")
-    ("y" normal-state-parens-sp-yank "copy-forward")
-    ("Y" normal-state-parens-sp-yank-backward "copy-backward")
-    ("s" sp-splice-sexp "splice")
-    ("t" normal-state-parens-sp-transpose "transpose"))
-
-  (defhydra hydra-smartparens-insert nil
+  (defhydra hydra-smartparens nil
     "smartparens"
     ("f" sp-forward-slurp-sexp "slurp-forward")
     ("F" sp-forward-barf-sexp "barf-forward")
@@ -651,45 +656,63 @@
     (define-key cider-mode-map (kbd "C-c M-:") nil) ; eval
     (define-key cider-mode-map (kbd "C-c M-m") nil) ; macroexpand
     (define-key cider-mode-map (kbd "C-c M-r") nil) ; restart
+    (define-key cider-mode-map (kbd "C-c RET") nil) ; macroexpand
+    (define-key cider-mode-map (kbd "C-c ,") nil) ; test (use C-c C-t)
+    (define-key cider-mode-map (kbd "C-c C-?") nil) ; xref
+    (define-key cider-mode-map (kbd "C-c C-d") nil) ; Doc (use C-c d)
+    (define-key cider-mode-map (kbd "C-c M-i") nil) ; Inspect
+    (define-key cider-mode-map (kbd "C-c M-s") nil) ; Selector
+    (define-key cider-mode-map (kbd "C-c M-;") nil)
+    (define-key cider-mode-map (kbd "C-c M-t") nil) ; Cider trace
+    (define-key cider-mode-map (kbd "C-c C-M-l") nil) ; Load all files
+    (define-key cider-mode-map (kbd "C-c M-z") nil) ; Load all files
 
     ;; Cider control
-    (define-key cider-mode-map (kbd "C-c q") 'cider-quit)
+    (define-key cider-mode-map (kbd "C-c C-q") 'cider-quit)
     (define-key cider-mode-map (kbd "C-c j") 'cider-jack-in)
     (define-key cider-mode-map (kbd "C-c J") 'cider-jack-in-cljs)
 
     ;; Find thing: C-c g
-    (let (my-cider-find-map)
-      (define-prefix-command 'my-cider-find-map)
-      (define-key my-cider-find-map (kbd "d") 'cider-find-var)
-      (define-key my-cider-find-map (kbd "n") 'cider-find-ns)
-      (define-key my-cider-find-map (kbd "r") 'cider-find-resource)
-      (define-key my-cider-find-map (kbd "k") 'cider-find-keyword)
-      (define-key cider-mode-map (kbd "C-c g") 'my-cider-find-map))
+    (let (find-thing-cider-robert-map)
+      (define-prefix-command 'find-thing-cider-robert-map)
+      (define-key find-thing-cider-robert-map (kbd "d") 'cider-find-var)
+      (define-key find-thing-cider-robert-map (kbd "n") 'cider-find-ns)
+      (define-key find-thing-cider-robert-map (kbd "r") 'cider-find-resource)
+      (define-key find-thing-cider-robert-map (kbd "k") 'cider-find-keyword)
+      (define-key cider-mode-map (kbd "C-c g") 'find-thing-cider-robert-map))
 
     ;; Expression evaluation: C-c e
-    (let (my-cider-eval-map)
-      (define-prefix-command 'my-cider-eval-map)
-      (define-key my-cider-eval-map (kbd "l") 'cider-eval-last-sexp)
-      (define-key my-cider-eval-map (kbd "r") 'cider-eval-last-sexp-to-repl)
-      (define-key my-cider-eval-map (kbd "p") 'cider-insert-last-sexp-in-repl)
-      (define-key my-cider-eval-map (kbd "t") 'cider-eval-defun-at-point)
-      (define-key my-cider-eval-map (kbd "a") 'cider-eval-sexp-at-point)
-      (define-key my-cider-eval-map (kbd "d") 'cider-debug-defun-at-point)
-      (define-key cider-mode-map (kbd "C-c e") 'my-cider-eval-map))
+    (let (eval-cider-robert-map)
+      (define-prefix-command 'eval-cider-robert-map)
+      (define-key eval-cider-robert-map (kbd "l") 'cider-eval-last-sexp)
+      (define-key eval-cider-robert-map (kbd "r") 'cider-eval-last-sexp-to-repl)
+      (define-key eval-cider-robert-map (kbd "p") 'cider-insert-last-sexp-in-repl)
+      (define-key eval-cider-robert-map (kbd "t") 'cider-eval-defun-at-point)
+      (define-key eval-cider-robert-map (kbd "a") 'cider-eval-sexp-at-point)
+      (define-key eval-cider-robert-map (kbd "d") 'cider-debug-defun-at-point)
+      (define-key cider-mode-map (kbd "C-c e") 'eval-cider-robert-map))
 
     ;; Macros: C-c m
-    (let (my-cider-macro-map)
-      (define-prefix-command 'my-cider-macro-map)
-      (define-key my-cider-macro-map (kbd "1") 'cider-macroexpand-1)
-      (define-key my-cider-macro-map (kbd "a") 'cider-macroexpand-all)
-      (define-key cider-mode-map (kbd "C-c m") 'my-cider-macro-map))
+    (let (macro-cider-robert-map)
+      (define-prefix-command 'macro-cider-robert-map)
+      (define-key macro-cider-robert-map (kbd "1") 'cider-macroexpand-1)
+      (define-key macro-cider-robert-map (kbd "a") 'cider-macroexpand-all)
+      (define-key cider-mode-map (kbd "C-c m") 'macro-cider-robert-map))
 
     ;; Formatting: C-c f
-    (let (my-cider-format-map)
-      (define-prefix-command 'my-cider-format-map)
-      (define-key my-cider-format-map (kbd "r") 'cider-format-region)
-      (define-key my-cider-format-map (kbd "f") 'cider-format-defun)
-      (define-key cider-mode-map (kbd "C-c f") 'my-cider-format-map))
+    (let (format-cider-robert-map)
+      (define-prefix-command 'format-cider-robert-map)
+      (define-key format-cider-robert-map (kbd "r") 'cider-format-region)
+      (define-key format-cider-robert-map (kbd "f") 'cider-format-defun)
+      (define-key cider-mode-map (kbd "C-c f") 'format-cider-robert-map))
+
+    ;; Namespace C-c n
+    (let (ns-cider-robert-map)
+      (define-prefix-command 'ns-cider-robert-map)
+      (define-key ns-cider-robert-map (kbd "b") 'cider-browse-ns)
+      (define-key ns-cider-robert-map (kbd "n") 'cider-repl-set-ns)
+      (define-key ns-cider-robert-map (kbd "f") 'cider-ns-refresh)
+      (define-key cider-mode-map (kbd "C-c n") 'ns-cider-robert-map))
 
     ;; Documentation: C-c C-d (by default), C-c d
     (define-key cider-doc-map (kbd "c") 'cider-cheatsheet)
@@ -706,43 +729,45 @@
 
     ;; Refactoring: C-c r
     (define-key clojure-mode-map (kbd "C-c C-r") 'cljr-helm)
-    (let ((my-cljr-refactor-map)
-          (my-cljr-refactor-rename-map)
-          (my-cljr-refactor-let-map)
-          (my-cljr-refactor-cycle-map)
-          (my-cljr-refactor-add-map))
-      (define-prefix-command 'my-cljr-refactor-map)
-      (define-prefix-command 'my-cljr-refactor-rename-map)
-      (define-prefix-command 'my-cljr-refactor-let-map)
-      (define-prefix-command 'my-cljr-refactor-cycle-map)
-      (define-prefix-command 'my-cljr-refactor-add-map)
+    (let ((refactor-cljr-robert-map)
+          (rename-refactor-cljr-robert-map)
+          (let-refactor-cljr-robert-map)
+          (cycle-refactor-cljr-robert-map)
+          (add-refactor-cljr-robert-map))
+      (define-prefix-command 'refactor-cljr-robert-map)
+      (define-prefix-command 'rename-refactor-cljr-robert-map)
+      (define-prefix-command 'let-refactor-cljr-robert-map)
+      (define-prefix-command 'cycle-refactor-cljr-robert-map)
+      (define-prefix-command 'add-refactor-cljr-robert-map)
       ;; Renaming refactorings C-c r r
-      (define-key my-cljr-refactor-rename-map (kbd "f") 'cljr-rename-file-or-dir)
-      (define-key my-cljr-refactor-rename-map (kbd "s") 'cljr-rename-symbol)
-      (define-key my-cljr-refactor-map (kbd "r") 'my-cljr-refactor-rename-map)
+      (define-key rename-refactor-cljr-robert-map (kbd "f") 'cljr-rename-file-or-dir)
+      (define-key rename-refactor-cljr-robert-map (kbd "s") 'cljr-rename-symbol)
+      (define-key refactor-cljr-robert-map (kbd "r") 'rename-refactor-cljr-robert-map)
       ;; Let refactorings C-c r l
-      (define-key my-cljr-refactor-let-map (kbd "i") 'clojure-introduce-let)
-      (define-key my-cljr-refactor-let-map (kbd "m") 'clojure-move-to-let)
-      (define-key my-cljr-refactor-let-map (kbd "r") 'cljr-remove-let)
-      (define-key my-cljr-refactor-let-map (kbd "e") 'cljr-expand-let)
-      (define-key my-cljr-refactor-map (kbd "l") 'my-cljr-refactor-let-map)
+      (define-key let-refactor-cljr-robert-map (kbd "i") 'clojure-introduce-let)
+      (define-key let-refactor-cljr-robert-map (kbd "m") 'clojure-move-to-let)
+      (define-key let-refactor-cljr-robert-map (kbd "r") 'cljr-remove-let)
+      (define-key let-refactor-cljr-robert-map (kbd "e") 'cljr-expand-let)
+      (define-key refactor-cljr-robert-map (kbd "l") 'let-refactor-cljr-robert-map)
       ;; Inline symbol C-c r i
-      (define-key my-cljr-refactor-map (kbd "i") 'cljr-inline-symbol)
+      (define-key refactor-cljr-robert-map (kbd "i") 'cljr-inline-symbol)
       ;; Cycle C-c r c
-      (define-key my-cljr-refactor-cycle-map (kbd "p") 'clojure-cycle-privacy)
-      (define-key my-cljr-refactor-cycle-map (kbd "n") 'clojure-cycle-not)
-      (define-key my-cljr-refactor-cycle-map (kbd "i") 'clojure-cycle-if)
-      (define-key my-cljr-refactor-map (kbd "c") 'my-cljr-refactor-cycle-map)
+      (define-key cycle-refactor-cljr-robert-map (kbd "p") 'clojure-cycle-privacy)
+      (define-key cycle-refactor-cljr-robert-map (kbd "n") 'clojure-cycle-not)
+      (define-key cycle-refactor-cljr-robert-map (kbd "i") 'clojure-cycle-if)
+      (define-key refactor-cljr-robert-map (kbd "c") 'cycle-refactor-cljr-robert-map)
       ;; Add C-c r a
-      (define-key my-cljr-refactor-add-map (kbd "r") 'cljr-add-require-to-ns)
-      (define-key my-cljr-refactor-add-map (kbd "d") 'cljr-add-project-dependency)
-      (define-key my-cljr-refactor-add-map (kbd "l") 'cljr-add-declaration)
-      (define-key my-cljr-refactor-add-map (kbd "a") 'cljr-add-missing-libspec)
-      (define-key my-cljr-refactor-map (kbd "a") 'my-cljr-refactor-add-map)
+      (define-key add-refactor-cljr-robert-map (kbd "r") 'cljr-add-require-to-ns)
+      (define-key add-refactor-cljr-robert-map (kbd "d") 'cljr-add-project-dependency)
+      (define-key add-refactor-cljr-robert-map (kbd "l") 'cljr-add-declaration)
+      (define-key add-refactor-cljr-robert-map (kbd "a") 'cljr-add-missing-libspec)
+      (define-key refactor-cljr-robert-map (kbd "a") 'add-refactor-cljr-robert-map)
 
-      (define-key clojure-mode-map (kbd "C-c r") 'my-cljr-refactor-map)))
+      (define-key clojure-mode-map (kbd "C-c r") 'refactor-cljr-robert-map)))
 
   (defun my-cider-repl-mode-stuff ()
+    (rainbow-delimiters-mode t)
+    (smartparens-strict-mode t)
     (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
     (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
     (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
@@ -758,7 +783,6 @@
   (add-hook 'clojure-mode-hook 'my-clojure-stuff)
   (add-hook 'cider-mode-hook #'company-mode)
   (add-hook 'cider-repl-mode-hook #'company-mode)
-  (add-hook 'cider-repl-mode-hook #'smartparens-strict-mode)
   (add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff))
 
 ;; =======================================================================
@@ -808,6 +832,7 @@
 ;; Text search
 (evil-define-key '(normal motion) 'global (kbd "SPC s") 'helm-do-grep-ag)
 (evil-define-key '(normal motion) 'global (kbd "SPC S") 'helm-projectile-ag)
+(evil-define-key 'normal 'global (kbd "SPC /") 'helm-swoop)
 
 ;; Ctags
 (evil-define-key '(normal motion) 'global (kbd "SPC t") 'projectile-find-tag)
@@ -819,26 +844,31 @@
 (evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'flang-format-region-at-point)
 
 ;; Helm emacs
-(evil-define-key '(insert normal motion) 'global "\M-x" 'helm-M-x)
+(evil-define-key '(insert normal motion) 'global (kbd "M-x") 'helm-M-x)
 (evil-define-key '(normal motion) 'global (kbd "C-x b") 'helm-apropos)
 
 ;; Other helm bindings
 (evil-define-key '(normal motion) 'global (kbd "C-x k") 'helm-show-kill-ring)
 (evil-define-key '(normal motion) 'global (kbd "SPC r") 'helm-resume)
-(evil-define-key 'normal 'global (kbd "SPC /") 'helm-swoop)
+(evil-define-key '(normal motion) 'global (kbd "SPC i") 'helm-imenu)
 
 ;; Vterm
 (evil-define-key '(normal motion) 'global (kbd "SPC v") 'multi-vterm)
 (evil-define-key '(normal motion) 'global (kbd "SPC C-v") 'robert-vterm-horizontally-in-new-window)
 (evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer)
 
+;; Processes
+(evil-define-key '(normal motion) 'global (kbd "C-x p") 'list-processes)
+
 ;; Smartparens
-(evil-define-key  'insert  'global (kbd "C-e") 'hydra-smartparens-insert/body)
-(evil-define-key '(normal motion visual) 'global (kbd "C-e") 'hydra-smartparens-normal/body)
+(evil-define-key  '(normal motion visual insert)  'global (kbd "C-e") 'hydra-smartparens/body)
 
 ;; Compilation
 (evil-define-key '(normal motion) 'global (kbd ",m") 'compile)
 (evil-define-key '(normal motion) 'global (kbd "C-;") 'recompile)
+
+;; Documentation
+(evil-define-key '(normal motion) 'global (kbd "SPC m") 'woman)
 
 ;; Magit
 (global-set-key (kbd "C-x g") 'magit-status)
@@ -864,6 +894,8 @@
 ;; Undefines
 (define-key global-map (kbd "C-x a") nil)
 (define-key global-map (kbd "C-x m") nil)
+(define-key global-map (kbd "C-4") nil)
+(define-key global-map (kbd "C-c M-g") nil)
 
 ;; =======================================================================
 ;; Generated!
