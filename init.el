@@ -1,13 +1,15 @@
 ;; ==============================================================================
 ;; Prefix documentation:
 ;;
-;; Available:
-;; C-q
-;; C-t 
-;; C-y
-;; C-n
-;; C-All non letter except ;
-;; Most M-
+;; Leaders:
+;; , inherited from old vim config
+;; SPC most general purpose
+;; C-x closely tied to emacs stuff
+;; C-c major mode specific
+;;
+;; TODO: convert bindings section to general
+;;  Fix up use-package for Clojure
+;;  Look into dired, woman, compilation bindings: need to be overridden?
 ;; ==============================================================================
 
 ;; =======================================================================
@@ -18,6 +20,8 @@
 (package-initialize)
 (setq package-enable-at-startup t)
 (require 'use-package)
+
+(use-package general :ensure t)
 
 ;; =======================================================================
 ;; SCRIPTING CMDS
@@ -69,11 +73,17 @@
 (defun robert-evil-tab-sensitive-quit ()
   (interactive)
   (require 'evil)
+  (require 'elscreen)
   (if (> (length (elscreen-get-screen-list)) 1)
       (if (> (count-windows) 1)
           (evil-quit)
         (elscreen-kill))
     (evil-quit)))
+
+(defun robert-open-header-in-new-window ()
+  (interactive)
+  (robert-split-horizontally-and-move-to-window)
+  (ff-find-other-file))
 
 ;; =======================================================================
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -81,7 +91,7 @@
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ;; =======================================================================
 ;; Load colorscheme
-(load-theme 'darcula t)
+(load-theme 'doom-pine t)
 
 ;; Disable to tool bar in gui mode (useless and takes tons of space)
 (tool-bar-mode -1)
@@ -100,8 +110,8 @@
 (global-auto-revert-mode t)
 
 ;; Show line numbers in left margin and mode line
-(global-linum-mode)
-(column-number-mode)
+(global-display-line-numbers-mode 1)
+(column-number-mode 1)
 
 ;; Highlight the line the cursor is on
 (global-hl-line-mode 1)
@@ -139,6 +149,9 @@
 ;; Always display certain buffers in a new window
 (setq display-buffer-alist '(("\\*cider-error\\*"
                               (display-buffer-reuse-window display-buffer-pop-up-window)
+                              ())
+                             ("\\*compilation\\*"
+                              (display-buffer-reuse-window display-buffer-pop-up-window)
                               ())))
 (setq split-width-threshold 1)
 (setq split-height-threshold 1)
@@ -154,6 +167,26 @@
 (setq winner-dont-bind-my-keys t)
 (require 'winner)
 (winner-mode 1)
+
+;; Rebind universal arg
+(define-key global-map (kbd "M-u") 'universal-argument)
+
+;; Map C-s to escape
+(define-key key-translation-map (kbd "C-s") (kbd "<escape>"))
+
+;; Help prefix
+(define-key global-map (kbd "C-x h") help-map)
+
+;; Generically do this in places without evil bindings
+(define-key global-map (kbd "C-w") 'backward-kill-word)
+
+;; Recenter screen after search
+;; Note: Since evil uses isearch and isearch uses overriding-terminal-local-map
+;; we should set this keybinding without evil-define-key to make it work.
+;; It will show up in the overriding-terminal-local-map this way.
+(define-key isearch-mode-map (kbd "<return>") 'robert-accept-search-and-center-screen)
+
+(set-terminal-coding-system 'utf-8)
 
 ;; =======================================================================
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,62 +226,86 @@
 ;; These keymaps are listed in `evil-mode-map-alist', which is listed
 ;; in `emulation-mode-map-alist'.
 ;; =======================================================================
-(setq evil-want-keybinding nil)
-(setq evil-want-integration t)
 
 (use-package evil
   :ensure t
+  :init
+  (setq evil-want-keybinding nil
+        evil-want-integration t)
   :config
-
   ;; Evil mode everywhere
-  (evil-mode)
+  (evil-mode 1)
 
-  ;; Collection of keybindings for additional modes. Good common starting place
-  ;; for supporting evil
-  (use-package evil-collection
-    :after evil
-    :ensure t
-    :custom
-    (evil-collection-setup-minibuffer t)
-    :config
-    (evil-collection-init 'vterm)
-    (evil-collection-init 'xref)
-    (evil-collection-init 'info)
-    (evil-collection-init 'compile)
-    (evil-collection-init 'dired)
-    (evil-collection-init 'debug))
-
-  ;; Vim-like tabs support
-  (use-package evil-tabs
-    :ensure t
-    :config
-    (evil-tabs-mode)
-    ;; Don't want elscreen default prefix
-    (define-key global-map (kbd "C-z") nil))
+  ;; Evil undo
+  (evil-set-undo-system 'undo-redo)
 
   ;; Normal mode can go to EOL
   (setq evil-move-beyond-eol t)
 
-  ;;Change how evil states are displayed in the mode line
-  (setq evil-normal-state-tag "NORMAL")
-  (setq evil-motion-state-tag "MOTION")
-  (setq evil-insert-state-tag "INSERT")
-  (setq evil-visual-state-tag "VISUAL")
-  (setq evil-emacs-state-tag "EMACS"))
+  ;; Unbind
+  (evil-define-key '(normal motion) 'global (kbd "SPC") nil)
+  (evil-define-key '(normal motion) 'global (kbd ",") nil)
 
-(evil-define-key '(normal motion) 'global (kbd "SPC") nil)
-(evil-define-key '(normal motion) 'global (kbd ",") nil)
+  ;; Change how evil states are displayed in the mode line
+  (setq evil-normal-state-tag "NORMAL"
+        evil-motion-state-tag "MOTION"
+        evil-insert-state-tag "INSERT"
+        evil-visual-state-tag "VISUAL"
+        evil-emacs-state-tag "EMACS"))
+
+;; Collection of keybindings for additional modes. Good common starting place
+;; for supporting evil
+(use-package evil-collection
+  :ensure t
+  :custom
+  (evil-collection-setup-minibuffer t)
+  :config
+  ;; These set up autoloads for their respective packages
+  (evil-collection-init 'vterm)
+  (evil-collection-init 'xref)
+  (evil-collection-init 'info)
+  (evil-collection-init 'compile)
+  (evil-collection-init 'dired)
+  (evil-collection-init 'debug))
+
+;; Vim-like tabs support
+(use-package evil-tabs
+  :ensure t
+  :config
+  (evil-tabs-mode 1)
+  :general
+  ;; Don't want elscreen default prefix
+  ("C-z" nil)
+  (:states '(normal motion)
+   ",q" 'robert-evil-tab-sensitive-quit
+   ",t" 'robert-dired-in-new-tab)
+  (:states '(normal motion insert visual emacs)
+   :keymaps 'override
+   "M-h" 'elscreen-previous
+   "M-l" 'evil-tabs-goto-tab))
+
 
 ;; =======================================================================
 ;; HELM
 ;; =======================================================================
 (use-package helm
   :ensure t
-  :config
-  (helm-mode)
-
+  :general
   ;; When doing a helm search want C-w to delete a word
-  (define-key helm-map (kbd "C-w") 'backward-kill-word)
+  (:keymaps 'helm-map
+   "C-w" 'backward-kill-word
+   "C-z" 'helm-select-action)
+  (:keymaps 'helm-find-files-map
+   "TAB" 'helm-execute-persistent-action
+   "C-<return>" 'helm-ff-switch-other-window
+   "M-<return>" 'helm-ff-switch-other-frame
+   "C-w" 'helm-find-files-up-one-level)
+  (:keymaps 'helm-buffer-map
+   "C-<return>" 'helm-ff-switch-other-window
+   "M-<return>" 'helm-ff-switch-other-frame)
+
+  :config
+  (helm-mode 1)
 
   ;; Set up locate db
   ;; (setq locate-db-command
@@ -256,32 +313,23 @@
   ;;         (insert-file-contents "PATH") (buffer-string)))
   ;; (setq helm-locate-command locate-db-command)
 
-  ;; Make find-file behave more like terminal bindings
-  (define-key helm-find-files-map (kbd "TAB") 'helm-execute-persistent-action)
-  (define-key helm-map (kbd "C-z") 'helm-select-action)
-  (define-key helm-find-files-map (kbd "C-<return>") 'helm-ff-run-switch-other-window)
-  (define-key helm-find-files-map (kbd "M-<return>") 'helm-ff-run-switch-other-frame)
-  (define-key helm-buffer-map (kbd "C-<return>") 'helm-buffer-switch-other-window)
-  (define-key helm-buffer-map (kbd "M-<return>") 'helm-buffer-switch-other-frame)
-  (define-key helm-find-files-map (kbd "C-w") 'helm-find-files-up-one-level)
-
   ;; Dont start the helm search at the file under point
-  (setq helm-find-files-ignore-thing-at-point t)
+  (setq helm-find-files-ignore-thing-at-point t))
 
-  ;; Helm for xref
-  (use-package helm-xref
-    :ensure t)
+(use-package helm-xref
+  :ensure t)
 
-  ;; Helm search in a file
-  (use-package helm-swoop
-    :ensure t
-    :config
-    (define-key helm-swoop-map (kbd "C-n") 'helm-next-line)
-    (define-key helm-swoop-map (kbd "C-p") 'helm-previous-line)
-
-    (setq helm-swoop-split-with-mutiple-windows t)
-    (setq helm-swoop-split-direction 'split-window-vertically)
-    (setq helm-swoop-use-fuzzy-match t)))
+;; Helm search in a file
+(use-package helm-swoop
+  :ensure t
+  :general
+  (:keymaps 'helm-swoop-map
+   "C-n" 'helm-next-line
+   "C-p" 'helm-previous-line)
+  :config
+  (setq helm-swoop-split-with-mutiple-windows t
+        helm-swoop-split-direction 'split-window-vertically
+        helm-swoop-use-fuzzy-match t))
 
 ;; =======================================================================
 ;; VTerm
@@ -289,19 +337,124 @@
 ;; =======================================================================
 (use-package vterm
   :ensure t
+  :general
+  (:keymaps 'vterm-mode-map
+   "C-x ESC" 'vterm-send-escape)
+  (:states 'normal :keymaps 'vterm-mode-map
+   "0" 'robert-vterm-move-to-start-of-prompt)
   :config
-  (use-package multi-vterm :ensure t)
   (defun kill-vterm-buffers ()
     (interactive)
     (kill-some-buffers (seq-filter (lambda (b)
                                      (string-match-p "^\\*vterm" (buffer-name b)))
-                                   (buffer-list))))
-  (evil-define-key 'insert vterm-mode-map (kbd "C-l") 'windmove-right)
-  (evil-define-key 'insert vterm-mode-map (kbd "C-k") 'windmove-up)
-  (evil-define-key 'insert vterm-mode-map (kbd "C-j") 'windmove-down)
-  (evil-define-key 'insert vterm-mode-map (kbd "C-h") 'windmove-left)
-  (evil-define-key '(normal insert motion visual) vterm-mode-map (kbd "C-x ESC") 'vterm-send-escape)
-  (evil-define-key '(normal motion) vterm-mode-map (kbd "0") 'robert-vterm-move-to-start-of-prompt))
+                                   (buffer-list)))))
+
+(use-package multi-vterm :ensure t)
+
+;; =======================================================================
+;; COMPANY
+;; =======================================================================
+(use-package company
+  :ensure t
+  :demand t
+  :hook ((c++-mode . company-mode)
+         (clojure-mode . company-mode)
+         (cider-repl-mode . company-mode))
+  :general
+  (:keymaps 'company-active-map
+   "RET" nil
+   "<return>" nil
+   "<backtab>" 'company-complete-common
+   "<tab>" 'company-complete-selection
+   "TAB" 'company-complete-selection
+   "C-n" 'company-select-next
+   "C-p" 'company-select-previous
+   "C-w" 'backward-kill-word)
+  :config
+  (global-company-mode 1)
+  ;; Unbind some completion stuff (apparently these sometimes overwrite company-complete stuff set below)
+  (evil-define-key 'insert 'global (kbd "C-n") nil)
+  (evil-define-key 'insert 'global (kbd "C-p") nil)
+  
+  (setq company-idle-delay 0.2
+	    company-minimum-prefix-length 1
+	    company-show-numbers nil
+	    company-tooltip-limit 20
+	    company-dabbrev-downcase nil))
+
+;; =======================================================================
+;; LSP
+;; =======================================================================
+(use-package lsp-mode
+  :ensure t
+  :hook
+  (c++-mode . lsp-deferred)
+  :general
+  (:states 'normal
+   "SPC l" 'lsp-command-map)
+  :commands lsp
+  :config
+  (setq lsp-clangd-binary-path "/usr/bin/clangd")
+  (setq lsp-clients-clangd-args '("--header-insertion=never"))
+  (setq lsp-enable-on-type-formatting nil))
+
+(use-package lsp-ui
+  :ensure t
+  :commands lsp-ui-mode)
+
+;; =======================================================================
+;; HYDRA
+;; =======================================================================
+(use-package hydra
+  :ensure t)
+
+(defhydra hydra-window (evil-normal-state-map "C-w")
+  "modify windows"
+  ("k" (evil-window-increase-height 5) "increase-height")
+  ("j" (evil-window-decrease-height 5) "decrease-height")
+  ("h" (evil-window-decrease-width 5) "decrease-width")
+  ("l" (evil-window-increase-width 5) "increase-width")
+  ("q" (delete-other-windows) "delete-other-windows" :exit t)
+  ("x" (elscreen-kill) "kill-tab" :exit t)
+  ("b" (balance-windows-area) "balance-area" :exit t))
+
+;; =======================================================================
+;; YASNIPPET
+;; =======================================================================
+(use-package yasnippet
+  :ensure t
+  :general
+  (:keymaps 'yas-keymap
+   "C-f" 'yas-next-field
+   "C-b" 'yas-prev-field)
+  (:states 'insert
+   "C-SPC" 'yas-expand
+   "M-y" 'company-yasnippet)
+  :config
+  (yas-global-mode 1))
+
+;; =======================================================================
+;; MAGIT
+;; =======================================================================
+(use-package magit
+  :ensure t)
+
+;; =======================================================================
+;; PROJECTILE
+;; =======================================================================
+(use-package projectile
+  :ensure t
+  :general
+  (:states '(normal insert motion)
+   "C-p" 'projectile-command-map)
+  :config
+  (projectile-mode t)
+
+  (use-package helm-projectile
+    :ensure t
+    :config
+    (helm-projectile-on)
+    (setq projectile-completion-system 'helm)))
 
 ;; =======================================================================
 ;; DIRED
@@ -343,53 +496,18 @@
   (define-key compilation-mode-map (kbd "g") nil)
   (define-key compilation-mode-map (kbd "r") 'recompile)
   (define-key compilation-mode-map (kbd "n") 'evil-search-next)
-  (define-key compilation-mode-map (kbd "N") 'evil-search-previous)
-
-  (evil-define-key '(normal motion) compilation-mode-map (kbd "C-j") 'windmove-down)
-  (evil-define-key '(normal motion) compilation-mode-map (kbd "C-k") 'windmove-up)
-  (evil-define-key '(normal motion) compilation-mode-map (kbd "C-h") 'windmove-left)
-  (evil-define-key '(normal motion) compilation-mode-map (kbd "C-l") 'windmove-right))
-
-;; =======================================================================
-;; PROCESS MENU MODE
-;; =======================================================================
-(defun robert-process-menu-bindings ()
-  (evil-define-key '(normal motion) 'local (kbd "x") 'process-menu-delete-process))
-(add-hook 'process-menu-mode-hook #'robert-process-menu-bindings)
+  (define-key compilation-mode-map (kbd "N") 'evil-search-previous))
 
 ;; =======================================================================
 ;; INFO/WOMAN MODE
 ;; =======================================================================
-;; Don't want my window bindings overriden
-(evil-define-key '(normal motion) Info-mode-map (kbd "C-j") 'windmove-down)
-(evil-define-key '(normal motion) Info-mode-map (kbd "C-k") 'windmove-up)
-(evil-define-key '(normal motion) Info-mode-map (kbd "C-h") 'windmove-left)
-(evil-define-key '(normal motion) Info-mode-map (kbd "C-l") 'windmove-right)
-
 ;; Node movement
 (evil-define-key '(normal motion) Info-mode-map (kbd "M-j") 'Info-next)
 (evil-define-key '(normal motion) Info-mode-map (kbd "M-k") 'Info-prev)
-(evil-define-key '(normal motion) Info-mode-map (kbd "M-h") 'elscreen-previous)
-(evil-define-key '(normal motion) Info-mode-map (kbd "M-l") 'evil-tabs-goto-tab)
+(evil-define-key '(normal motion) Info-mode-map (kbd "<backspace>") 'Info-last)
 
 (setq woman-fill-frame 1)
 (setq woman-fill-column 80)
-
-;; =======================================================================
-;; HYDRA
-;; =======================================================================
-(use-package hydra
-  :ensure t)
-
-(defhydra hydra-window (evil-normal-state-map "C-w")
-  "modify windows"
-  ("k" (evil-window-increase-height 5) "increase-height")
-  ("j" (evil-window-decrease-height 5) "decrease-height")
-  ("h" (evil-window-decrease-width 5) "decrease-width")
-  ("l" (evil-window-increase-width 5) "increase-width")
-  ("q" (delete-other-windows) "delete-other-windows" :exit t)
-  ("x" (elscreen-kill) "kill-tab" :exit t)
-  ("b" (balance-windows-area) "balance-area" :exit t))
 
 ;; =======================================================================
 ;; WHICH KEY
@@ -403,42 +521,13 @@
 ;; =======================================================================
 (use-package ace-jump-mode
   :ensure t
-  :config
-  (evil-define-key 'normal 'global (kbd "SPC SPC") 'ace-jump-mode))
-
-;; =======================================================================
-;; YASNIPPET
-;; =======================================================================
-(use-package yasnippet
-  :ensure t
-  :config
-  (yas-global-mode 1)
-  (define-key yas-keymap (kbd "C-f") 'yas-next-field)
-  (define-key yas-keymap (kbd "C-b") 'yas-prev-field)
-  (evil-define-key 'insert 'global (kbd "C-SPC") 'yas-expand)
-  (evil-define-key 'insert 'global (kbd "M-y") 'company-yasnippet))
-
-;; =======================================================================
-;; MAGIT
-;; =======================================================================
-(use-package evil-magit
-  :ensure t
-  :config
-  (evil-magit-init))
-
-;; =======================================================================
-;; RECENTF
-;; =======================================================================
-(use-package recentf
-  :ensure t
-  :config
-  (setq recentf-max-saved-items 50))
+  :general
+  (:states '(normal motion)
+   "SPC SPC" 'ace-jump-mode))
 
 ;; =======================================================================
 ;; TELEPHONE LINE
 ;; =======================================================================
-(set-terminal-coding-system 'utf-8)
-
 (use-package telephone-line
   :ensure t
   :config
@@ -454,68 +543,6 @@
         '((nil . (telephone-line-misc-info-segment))
           (evil . (telephone-line-airline-position-segment))))
   (telephone-line-mode 1))
-
-;; =======================================================================
-;; PROJECTILE
-;; =======================================================================
-(use-package projectile
-  :ensure t
-  :config
-  (projectile-mode t)
-
-  ;; Set projectile prefix
-  (evil-define-key 'normal 'global (kbd "C-p") nil)
-  (define-key projectile-mode-map (kbd "C-p") 'projectile-command-map)
-
-  (use-package helm-projectile
-    :ensure t
-    :config
-    (helm-projectile-on)
-    (setq projectile-completion-system 'helm)))
-
-;; =======================================================================
-;; COMPANY
-;; =======================================================================
-(use-package company
-  :ensure t
-  :defer t
-  :init (add-hook 'after-init-hook 'global-company-mode)
-  :config
-  ;; Unbind some completion stuff (apparently these sometimes overwrite company-complete stuff set below)
-  (evil-define-key 'insert 'global (kbd "C-n") nil)
-  (evil-define-key 'insert 'global (kbd "C-p") nil)
-
-  (define-key company-active-map (kbd "RET") nil)
-  (define-key company-active-map (kbd "<return>") nil)
-  (define-key company-active-map (kbd "<backtab>") 'company-complete-common)
-  (define-key company-active-map (kbd "<tab>") 'company-complete-selection)
-  (define-key company-active-map (kbd "TAB") 'company-complete-selection)
-  (define-key company-active-map (kbd "C-n") 'company-select-next)
-  (define-key company-active-map (kbd "C-p") 'company-select-previous)
-  (define-key company-active-map (kbd "C-w") 'backward-kill-word)
-  (setq company-idle-delay 0.2
-	    company-minimum-prefix-length 1
-	    company-show-numbers nil
-	    company-tooltip-limit 20
-	    company-dabbrev-downcase nil))
-;; (use-package company-irony
-;;   :ensure t
-;;   :defer t
-;;   :config
-;;   (setq company-irony-ignore-case 'smart)
-;;   (add-to-list 'company-backends 'company-irony)
-;;   (use-package company-c-headers
-;;     :ensure t
-;;     :functions irony--extract-user-search-paths company-c-headers
-;;     :preface
-;;     (defun company-c-headers-path-user-irony ()
-;;   "Return the user include paths for the current buffer."
-;;   (when irony-mode
-;;     (irony--extract-user-search-paths irony--compile-options irony--working-directory)))
-;;     :config
-;;     (setq company-c-headers-path-user #'company-c-headers-path-user-irony)
-;;     (add-to-list 'company-backends #'company-c-headers)))
-
 
 ;; =======================================================================
 ;; -----------------------------------------------------------------------
@@ -552,7 +579,9 @@
   ;; Don't indent within a namespace
   (setq my-cc-style
         '("cc-mode"
-          (c-offsets-alist . ((innamespace . [0])))))
+          (c-offsets-alist (innamespace . [0])
+                           (case-label . +)
+                           (arglist-close . 0))))
   (c-add-style "my-cc-style" my-cc-style)
   (add-hook 'c++-mode-hook (lambda () (c-set-style "my-cc-style")))
 
@@ -583,6 +612,9 @@
 ;; =======================================================================
 (use-package smartparens
   :ensure t
+  :hook ((emacs-lisp-mode . smartparens-strict-mode)
+         (clojure-mode . smartparens-strict-mode)
+         (cider-repl-mode . smartparens-strict-mode))
   :config
   (sp-pair "'" nil :actions :rem)
   (sp-pair "(" nil :unless '(sp-in-string-p))
@@ -613,176 +645,109 @@
 
   (use-package evil-smartparens
     :ensure t
-    :config
-    (add-hook 'smartparens-enabled-hook #'evil-smartparens-mode)))
+    :hook ((smartparens-enabled . evil-smartparens-mode))))
 
-(use-package rainbow-delimiters :ensure t)
-(use-package aggressive-indent :ensure t)
+(use-package rainbow-delimiters
+  :ensure t
+  :hook ((emacs-lisp-mode . rainbow-delimiters-mode)
+         (clojure-mode . rainbow-delimiters-mode)
+         (cider-repl-mode . rainbow-delimiters-mode)))
 
-(defun my-elisp-stuff ()
-  (smartparens-strict-mode t)
-  (aggressive-indent-mode t))
-(add-hook 'emacs-lisp-mode-hook #'my-elisp-stuff)
+(use-package aggressive-indent
+  :ensure t
+  :hook ((emacs-lisp-mode . aggressive-indent-mode)
+         (clojure-mode . aggressive-indent-mode)
+         (cider-repl-mode . aggressive-indent-mode)))
+
+(general-def 'emacs-lisp-mode-map
+  "C-c e" 'eval-last-sexp
+  "C-c d" 'eval-defun
+  "C-c f" 'eval-buffer)
 
 (use-package clojure-mode
   :ensure t
+  :mode ("\\.clj\\'" "\\.cljs\\'" "\\.edn\\'")
   :config
   (setq clojure-indent-style 'align-arguments)
-  (setq clojure-align-forms-automatically t)
+  (setq clojure-align-forms-automatically t))
 
-  (use-package cider
-    :ensure t
-    :config
-    (use-package clj-refactor :ensure t)
-    (use-package cljr-helm :ensure t)
-    (use-package helm-cider :ensure t :config (helm-cider-mode t))
+(use-package clj-refactor
+  :ensure t
+  :hook (clojure-mode . clj-refactor-mode)
+  :config
+  (use-package cljr-helm :ensure t))
 
-    (setq cider-repl-display-in-current-window t)
-    ;; Unbind certain things that we don't use (so which-key is more useful)
-    (define-key clojure-mode-map (kbd "C-c M-c") nil) ; connect
-    (define-key clojure-mode-map (kbd "C-c M-C") nil) ; connect
-    (define-key clojure-mode-map (kbd "C-c M-j") nil) ; jack in
-    (define-key clojure-mode-map (kbd "C-c M-J") nil) ; jack in
-    (define-key clojure-mode-map (kbd "C-c M-x") nil) ; restart
-    (define-key clojure-mode-map (kbd "C-c M-z") nil) ; restart
-    (define-key clojure-mode-map (kbd "C-c C-x") nil) ; cider start
-    (define-key clojure-mode-map (kbd "C-c M-t") nil) ; trace stuff
-    (define-key cider-mode-map (kbd "C-c C-.") nil) ; find ns
-    (define-key cider-mode-map (kbd "C-c C-:") nil) ; find kw
-    (define-key cider-mode-map (kbd "C-c M-.") nil) ; find resource
-    (define-key cider-mode-map (kbd "C-c M-p") nil)
-    (define-key cider-mode-map (kbd "C-c M-d") nil)
-    (define-key cider-mode-map (kbd "C-c M-e") nil) ; eval
-    (define-key cider-mode-map (kbd "C-c M-:") nil) ; eval
-    (define-key cider-mode-map (kbd "C-c M-m") nil) ; macroexpand
-    (define-key cider-mode-map (kbd "C-c M-r") nil) ; restart
-    (define-key cider-mode-map (kbd "C-c RET") nil) ; macroexpand
-    (define-key cider-mode-map (kbd "C-c ,") nil) ; test (use C-c C-t)
-    (define-key cider-mode-map (kbd "C-c C-?") nil) ; xref
-    (define-key cider-mode-map (kbd "C-c C-d") nil) ; Doc (use C-c d)
-    (define-key cider-mode-map (kbd "C-c M-i") nil) ; Inspect
-    (define-key cider-mode-map (kbd "C-c M-s") nil) ; Selector
-    (define-key cider-mode-map (kbd "C-c M-;") nil)
-    (define-key cider-mode-map (kbd "C-c M-t") nil) ; Cider trace
-    (define-key cider-mode-map (kbd "C-c C-M-l") nil) ; Load all files
-    (define-key cider-mode-map (kbd "C-c M-z") nil) ; Load all files
+(use-package cider
+  :ensure t
+  :hook (clojure-mode . cider-mode)
+  :config
+  (use-package helm-cider :ensure t :config (helm-cider-mode t))
 
-    ;; Cider control
-    (define-key cider-mode-map (kbd "C-c C-q") 'cider-quit)
-    (define-key cider-mode-map (kbd "C-c j") 'cider-jack-in)
-    (define-key cider-mode-map (kbd "C-c J") 'cider-jack-in-cljs)
+  (setq cider-repl-pop-to-buffer-on-connect nil)
+  (setq cider-repl-display-in-current-window t)
 
-    ;; Find thing: C-c g
-    (let (find-thing-cider-robert-map)
-      (define-prefix-command 'find-thing-cider-robert-map)
-      (define-key find-thing-cider-robert-map (kbd "d") 'cider-find-var)
-      (define-key find-thing-cider-robert-map (kbd "n") 'cider-find-ns)
-      (define-key find-thing-cider-robert-map (kbd "r") 'cider-find-resource)
-      (define-key find-thing-cider-robert-map (kbd "k") 'cider-find-keyword)
-      (define-key cider-mode-map (kbd "C-c g") 'find-thing-cider-robert-map))
+  ;; Find thing: C-c g
+  (general-def cider-mode-map
+    :prefix "C-c g"
+    :prefix-command 'find-thing-cider-robert
+    "d" 'cider-find-var
+    "n" 'cider-find-ns
+    "r" 'cider-find-resource
+    "k" 'cider-find-keyword)
 
-    ;; Expression evaluation: C-c e
-    (let (eval-cider-robert-map)
-      (define-prefix-command 'eval-cider-robert-map)
-      (define-key eval-cider-robert-map (kbd "l") 'cider-eval-last-sexp)
-      (define-key eval-cider-robert-map (kbd "r") 'cider-eval-last-sexp-to-repl)
-      (define-key eval-cider-robert-map (kbd "p") 'cider-insert-last-sexp-in-repl)
-      (define-key eval-cider-robert-map (kbd "t") 'cider-eval-defun-at-point)
-      (define-key eval-cider-robert-map (kbd "a") 'cider-eval-sexp-at-point)
-      (define-key eval-cider-robert-map (kbd "d") 'cider-debug-defun-at-point)
-      (define-key cider-mode-map (kbd "C-c e") 'eval-cider-robert-map))
+  ;; Eval C-c e
+  (general-def cider-mode-map
+    :prefix "C-c e"
+    :prefix-command 'eval-thing-cider-robert
+    "l" 'cider-eval-last-sexp
+    "r" 'cider-eval-last-sexp-to-repl
+    "p" 'cider-insert-last-sexp-in-repl
+    "t" 'cider-eval-defun-at-point
+    "a" 'cider-eval-sexp-at-point
+    "d" 'cider-debug-defun-at-point)
 
-    ;; Macros: C-c m
-    (let (macro-cider-robert-map)
-      (define-prefix-command 'macro-cider-robert-map)
-      (define-key macro-cider-robert-map (kbd "1") 'cider-macroexpand-1)
-      (define-key macro-cider-robert-map (kbd "a") 'cider-macroexpand-all)
-      (define-key cider-mode-map (kbd "C-c m") 'macro-cider-robert-map))
+  ;; Macros
+  (general-def cider-mode-map
+    :prefix "C-c m"
+    :prefix-command 'macro-cider-robert
+    "1" 'cider-macroexpand-1
+    "a" 'cider-macroexpand-all)
 
-    ;; Formatting: C-c f
-    (let (format-cider-robert-map)
-      (define-prefix-command 'format-cider-robert-map)
-      (define-key format-cider-robert-map (kbd "r") 'cider-format-region)
-      (define-key format-cider-robert-map (kbd "f") 'cider-format-defun)
-      (define-key cider-mode-map (kbd "C-c f") 'format-cider-robert-map))
+  ;; Formatting
+  (general-def cider-mode-map
+    :prefix "C-c f"
+    :prefix-command 'format-cider-robert
+    "r" 'cider-format-region
+    "f" 'cider-format-defun)
 
-    ;; Namespace C-c n
-    (let (ns-cider-robert-map)
-      (define-prefix-command 'ns-cider-robert-map)
-      (define-key ns-cider-robert-map (kbd "b") 'cider-browse-ns)
-      (define-key ns-cider-robert-map (kbd "n") 'cider-repl-set-ns)
-      (define-key ns-cider-robert-map (kbd "f") 'cider-ns-refresh)
-      (define-key cider-mode-map (kbd "C-c n") 'ns-cider-robert-map))
+  ;; Namespace
+  (general-def cider-mode-map
+    :prefix "C-c n"
+    "b" 'cider-browse-ns
+    "n" 'cider-repl-set-ns
+    "f" 'cider-ns-refresh)
+  (define-key cider-mode-map (kbd "C-c C-n") 'cider-repl-set-ns) ;; Nice to not have to release Ctrl
 
-    ;; Documentation: C-c C-d (by default), C-c d
-    (define-key cider-doc-map (kbd "c") 'cider-cheatsheet)
-    (define-key cider-doc-map (kbd "C") 'helm-cider-cheatsheet)
-    (define-key cider-mode-map (kbd "C-c d") 'cider-doc-map)
+  ;; Docs
+  (general-def cider-doc-map
+    "c" 'helm-cider-cheatsheet)
+  (define-key cider-mode-map (kbd "C-c d") 'cider-doc-map)
 
-    ;; Namespacing
-    (define-key cider-mode-map (kbd "C-c C-n") 'cider-repl-set-ns)
+  ;; Fix up REPL usage in Normal mode
+  (define-key cider-repl-mode-map (kbd "<up>") 'cider-repl-backward-input)
+  (define-key cider-repl-mode-map (kbd "<down>") 'cider-repl-forward-input)
+  ;; We define RET -> cider-repl-return in cider-repl-mode-hooks for evil reasons
 
-    ;; Fix up REPL usage in Normal mode
-    (define-key cider-repl-mode-map (kbd "<up>") 'cider-repl-backward-input)
-    (define-key cider-repl-mode-map (kbd "<down>") 'cider-repl-forward-input)
-    ;; We define RET -> cider-repl-return in cider-repl-mode-hooks for evil reasons
+  ;; Refactoring
+  (define-key clojure-mode-map (kbd "C-c C-r") 'cljr-helm)
 
-    ;; Refactoring: C-c r
-    (define-key clojure-mode-map (kbd "C-c C-r") 'cljr-helm)
-    (let ((refactor-cljr-robert-map)
-          (rename-refactor-cljr-robert-map)
-          (let-refactor-cljr-robert-map)
-          (cycle-refactor-cljr-robert-map)
-          (add-refactor-cljr-robert-map))
-      (define-prefix-command 'refactor-cljr-robert-map)
-      (define-prefix-command 'rename-refactor-cljr-robert-map)
-      (define-prefix-command 'let-refactor-cljr-robert-map)
-      (define-prefix-command 'cycle-refactor-cljr-robert-map)
-      (define-prefix-command 'add-refactor-cljr-robert-map)
-      ;; Renaming refactorings C-c r r
-      (define-key rename-refactor-cljr-robert-map (kbd "f") 'cljr-rename-file-or-dir)
-      (define-key rename-refactor-cljr-robert-map (kbd "s") 'cljr-rename-symbol)
-      (define-key refactor-cljr-robert-map (kbd "r") 'rename-refactor-cljr-robert-map)
-      ;; Let refactorings C-c r l
-      (define-key let-refactor-cljr-robert-map (kbd "i") 'clojure-introduce-let)
-      (define-key let-refactor-cljr-robert-map (kbd "m") 'clojure-move-to-let)
-      (define-key let-refactor-cljr-robert-map (kbd "r") 'cljr-remove-let)
-      (define-key let-refactor-cljr-robert-map (kbd "e") 'cljr-expand-let)
-      (define-key refactor-cljr-robert-map (kbd "l") 'let-refactor-cljr-robert-map)
-      ;; Inline symbol C-c r i
-      (define-key refactor-cljr-robert-map (kbd "i") 'cljr-inline-symbol)
-      ;; Cycle C-c r c
-      (define-key cycle-refactor-cljr-robert-map (kbd "p") 'clojure-cycle-privacy)
-      (define-key cycle-refactor-cljr-robert-map (kbd "n") 'clojure-cycle-not)
-      (define-key cycle-refactor-cljr-robert-map (kbd "i") 'clojure-cycle-if)
-      (define-key refactor-cljr-robert-map (kbd "c") 'cycle-refactor-cljr-robert-map)
-      ;; Add C-c r a
-      (define-key add-refactor-cljr-robert-map (kbd "r") 'cljr-add-require-to-ns)
-      (define-key add-refactor-cljr-robert-map (kbd "d") 'cljr-add-project-dependency)
-      (define-key add-refactor-cljr-robert-map (kbd "l") 'cljr-add-declaration)
-      (define-key add-refactor-cljr-robert-map (kbd "a") 'cljr-add-missing-libspec)
-      (define-key refactor-cljr-robert-map (kbd "a") 'add-refactor-cljr-robert-map)
-
-      (define-key clojure-mode-map (kbd "C-c r") 'refactor-cljr-robert-map)))
-
+  ;; Repl hooks
   (defun my-cider-repl-mode-stuff ()
-    (rainbow-delimiters-mode t)
     (smartparens-strict-mode t)
     (evil-define-key '(normal motion) 'local (kbd "<up>") 'cider-repl-backward-input)
     (evil-define-key '(normal motion) 'local (kbd "<down>") 'cider-repl-forward-input)
     (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
 
-  (defun my-clojure-stuff ()
-    (rainbow-delimiters-mode t) ; Highlight matching parens
-    (cider-mode t)
-    (smartparens-strict-mode t)
-    (clj-refactor-mode t)
-    (yas-minor-mode t)
-    (aggressive-indent-mode t))
-
-  (add-hook 'clojure-mode-hook 'my-clojure-stuff)
-  (add-hook 'cider-mode-hook #'company-mode)
-  (add-hook 'cider-repl-mode-hook #'company-mode)
   (add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff))
 
 ;; =======================================================================
@@ -802,15 +767,16 @@
 (evil-define-key '(normal motion) 'global (kbd "SPC f x") 'delete-frame)
 
 ;; Tabs
-(evil-define-key '(normal motion insert) 'global (kbd "M-h") 'elscreen-previous)
-(evil-define-key '(normal motion insert) 'global (kbd "M-l") 'evil-tabs-goto-tab)
-(evil-define-key '(normal motion) 'global (kbd ",t") 'robert-dired-in-new-tab)
+;; (evil-define-key '(normal motion insert) 'global (kbd "M-h") 'elscreen-previous)
+;; (evil-define-key '(normal motion insert) 'global (kbd "M-l") 'evil-tabs-goto-tab)
+;; (evil-define-key '(normal motion) 'global (kbd ",t") 'robert-dired-in-new-tab)
 
 ;; Windows
-(evil-define-key '(normal motion) 'global (kbd "C-j") 'windmove-down)
-(evil-define-key '(normal motion) 'global (kbd "C-k") 'windmove-up)
-(evil-define-key '(normal motion) 'global (kbd "C-h") 'windmove-left)
-(evil-define-key '(normal motion) 'global (kbd "C-l") 'windmove-right)
+(general-def '(normal insert motion visual emacs) 'override
+  "C-j" 'windmove-down
+  "C-k" 'windmove-up
+  "C-h" 'windmove-left
+  "C-l" 'windmove-right)
 (evil-define-key '(normal motion) 'global (kbd ",q") 'robert-evil-tab-sensitive-quit)
 (evil-define-key '(normal motion) vterm-mode-map (kbd ",k") 'robert-kill-this-buffer-and-close-window)
 (evil-define-key '(normal motion) 'global (kbd "C-x C-k") 'robert-kill-this-buffer-and-close-window)
@@ -841,7 +807,7 @@
 
 ;; Clang format
 (evil-define-key 'visual 'c++-mode-map (kbd "SPC c") 'clang-format-region)
-(evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'flang-format-region-at-point)
+(evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'clang-format-region-at-point)
 
 ;; Helm emacs
 (evil-define-key '(insert normal motion) 'global (kbd "M-x") 'helm-M-x)
@@ -868,28 +834,15 @@
 (evil-define-key '(normal motion) 'global (kbd "C-;") 'recompile)
 
 ;; Documentation
-(evil-define-key '(normal motion) 'global (kbd "SPC m") 'woman)
+(evil-define-key '(normal motion) 'global (kbd "SPC m") 'helm-man-woman)
+
+;; Source Code Movement
+(evil-define-key '(normal motion) 'global (kbd ",h") 'robert-open-header-in-new-window)
+(evil-define-key '(normal motion) 'global (kbd "SPC h") 'ff-find-other-file)
 
 ;; Magit
 (global-set-key (kbd "C-x g") 'magit-status)
 
-;; Rebind universal arg
-(define-key global-map (kbd "M-u") 'universal-argument)
-
-;; Map C-s to escape
-(define-key key-translation-map (kbd "C-s") (kbd "<escape>"))
-
-;; Help prefix
-(define-key global-map (kbd "C-x h") help-map)
-
-;; Generically do this in places without evil bindings
-(define-key global-map (kbd "C-w") 'backward-kill-word)
-
-;; Recenter screen after search
-;; Note: Since evil uses isearch and isearch uses overriding-terminal-local-map
-;; we should set this keybinding without evil-define-key to make it work.
-;; It will show up in the overriding-terminal-local-map this way.
-(define-key isearch-mode-map (kbd "<return>") 'robert-accept-search-and-center-screen)
 
 ;; Undefines
 (define-key global-map (kbd "C-x a") nil)
@@ -905,12 +858,92 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(evil-collection-setup-minibuffer t)
+ '(custom-safe-themes
+   '("56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700" "4c7228157ba3a48c288ad8ef83c490b94cb29ef01236205e360c2c4db200bb18" "7b8f5bbdc7c316ee62f271acf6bcd0e0b8a272fdffe908f8c920b0ba34871d98" "d445c7b530713eac282ecdeea07a8fa59692c83045bf84dd112dd738c7bcad1d" default))
  '(package-selected-packages
-   '(multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
+   '(general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+
+;; https://github.com/Fuco1/.emacs.d/blob/af82072196564fa57726bdbabf97f1d35c43b7f7/site-lisp/redef.el#L20-L94
+(defun Fuco1/lisp-indent-function (indent-point state)
+  "This function is the normal value of the variable `lisp-indent-function'.
+The function `calculate-lisp-indent' calls this to determine
+if the arguments of a Lisp function call should be indented specially.
+
+INDENT-POINT is the position at which the line being indented begins.
+Point is located at the point to indent under (for default indentation);
+STATE is the `parse-partial-sexp' state for that position.
+
+If the current line is in a call to a Lisp function that has a non-nil
+property `lisp-indent-function' (or the deprecated `lisp-indent-hook'),
+it specifies how to indent.  The property value can be:
+
+* `defun', meaning indent `defun'-style
+  \(this is also the case if there is no property and the function
+  has a name that begins with \"def\", and three or more arguments);
+
+* an integer N, meaning indent the first N arguments specially
+  (like ordinary function arguments), and then indent any further
+  arguments like a body;
+
+* a function to call that returns the indentation (or nil).
+  `lisp-indent-function' calls this function with the same two arguments
+  that it itself received.
+
+This function returns either the indentation to use, or nil if the
+Lisp function does not specify a special indentation."
+  (let ((normal-indent (current-column))
+        (orig-point (point)))
+    (goto-char (1+ (elt state 1)))
+    (parse-partial-sexp (point) calculate-lisp-indent-last-sexp 0 t)
+    (cond
+     ;; car of form doesn't seem to be a symbol, or is a keyword
+     ((and (elt state 2)
+           (or (not (looking-at "\\sw\\|\\s_"))
+               (looking-at ":")))
+      (if (not (> (save-excursion (forward-line 1) (point))
+                  calculate-lisp-indent-last-sexp))
+          (progn (goto-char calculate-lisp-indent-last-sexp)
+                 (beginning-of-line)
+                 (parse-partial-sexp (point)
+                                     calculate-lisp-indent-last-sexp 0 t)))
+      ;; Indent under the list or under the first sexp on the same
+      ;; line as calculate-lisp-indent-last-sexp.  Note that first
+      ;; thing on that line has to be complete sexp since we are
+      ;; inside the innermost containing sexp.
+      (backward-prefix-chars)
+      (current-column))
+     ((and (save-excursion
+             (goto-char indent-point)
+             (skip-syntax-forward " ")
+             (not (looking-at ":")))
+           (save-excursion
+             (goto-char orig-point)
+             (looking-at ":")))
+      (save-excursion
+        (goto-char (+ 2 (elt state 1)))
+        (current-column)))
+     (t
+      (let ((function (buffer-substring (point)
+                                        (progn (forward-sexp 1) (point))))
+            method)
+        (setq method (or (function-get (intern-soft function)
+                                       'lisp-indent-function)
+                         (get (intern-soft function) 'lisp-indent-hook)))
+        (cond ((or (eq method 'defun)
+                   (and (null method)
+                        (> (length function) 3)
+                        (string-match "\\`def" function)))
+               (lisp-indent-defform state indent-point))
+              ((integerp method)
+               (lisp-indent-specform method state
+                                     indent-point normal-indent))
+              (method
+               (funcall method indent-point state))))))))
+
+(add-hook 'emacs-lisp-mode-hook (lambda () (setq-local lisp-indent-function #'Fuco1/lisp-indent-function)))
