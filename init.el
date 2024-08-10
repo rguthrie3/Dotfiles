@@ -96,6 +96,9 @@
 ;; Disable to tool bar in gui mode (useless and takes tons of space)
 (tool-bar-mode -1)
 
+;; Disable menu bar
+(menu-bar-mode -1)
+
 ;; Disable annoying bell
 (setq ring-bell-function 'ignore)
 
@@ -170,6 +173,7 @@
 
 ;; Rebind universal arg
 (define-key global-map (kbd "M-u") 'universal-argument)
+(define-key universal-argument-map (kbd "M-u") 'universal-argument-more)
 
 ;; Map C-s to escape
 (define-key key-translation-map (kbd "C-s") (kbd "<escape>"))
@@ -292,6 +296,17 @@
   :ensure t
   :general
   ;; When doing a helm search want C-w to delete a word
+  ("M-x" 'helm-M-x
+   "C-x l" 'helm-locate
+   "C-x b" 'helm-apropos
+   "C-x k" 'helm-show-kill-ring)
+  (:states '(normal motion)
+   "C-f" 'helm-find-files
+   "C-b" 'helm-mini
+   "SPC i" 'helm-imenu
+   "SPC r" 'helm-resume
+   "SPC s" 'helm-do-grep-ag
+   "SPC m" 'helm-man-woman)
   (:keymaps 'helm-map
    "C-w" 'backward-kill-word
    "C-z" 'helm-select-action)
@@ -323,6 +338,8 @@
 (use-package helm-swoop
   :ensure t
   :general
+  (:states '(normal motion)
+   "SPC /" 'helm-swoop)
   (:keymaps 'helm-swoop-map
    "C-n" 'helm-next-line
    "C-p" 'helm-previous-line)
@@ -349,7 +366,14 @@
                                      (string-match-p "^\\*vterm" (buffer-name b)))
                                    (buffer-list)))))
 
-(use-package multi-vterm :ensure t)
+(use-package multi-vterm
+  :ensure t
+  :after vterm
+  :general
+  (:states '(normal motion)
+   "SPC v" 'multi-vterm
+   "SPC C-v" 'robert-vterm-horizontally-in-new-window
+   "SPC ," 'multi-vterm-rename-buffer))
 
 ;; =======================================================================
 ;; COMPANY
@@ -437,7 +461,9 @@
 ;; MAGIT
 ;; =======================================================================
 (use-package magit
-  :ensure t)
+  :ensure t
+  :general
+  ("C-x g" 'magit-status))
 
 ;; =======================================================================
 ;; PROJECTILE
@@ -565,11 +591,31 @@
 (add-hook 'css-mode-hook 'my-css-stuff)
 
 ;; =======================================================================
+;; CLANG FORMAT
+;; =======================================================================
+(defun clang-format-region-at-point ()
+  (interactive)
+  (defvar-local bounds (bounds-of-thing-at-point 'paragraph))
+  (clang-format-region (car bounds) (cdr bounds)))
+
+(use-package clang-format
+  :ensure t
+  :config
+  (setq clang-format-style-option "file"))
+
+;; =======================================================================
 ;; C++
 ;; =======================================================================
 (use-package cc-mode
+  :mode (("\\.h\\'" . c++-mode)
+         ("\\.hpp\\'" . c++-mode)
+         ("\\.H\\'" . c++-mode)
+         ("\\.C\\'" . c++-mode))
+  :general
+  (:states 'visual
+   :keymaps 'c++-mode-map
+   "SPC c" 'clang-format-region)
   :config
-
   ;; Make _ not a word boundary
   (defun cpp-init-stuff ()
     (modify-syntax-entry ?_ "w" c++-mode-syntax-table))
@@ -586,26 +632,9 @@
   (add-hook 'c++-mode-hook (lambda () (c-set-style "my-cc-style")))
 
   ;; Fix all problems with modern C++ syntax highlighting
-  (use-package modern-cpp-font-lock :ensure t)
+  (use-package modern-cpp-font-lock
+    :ensure t)
   (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode))
-
-(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.H\\'" . c++-mode))
-(add-to-list 'auto-mode-alist '("\\.C\\'" . c++-mode))
-
-;; =======================================================================
-;; CLANG FORMAT
-;; =======================================================================
-(defun clang-format-region-at-point ()
-  (interactive)
-  (defvar-local bounds (bounds-of-thing-at-point 'paragraph))
-  (clang-format-region (car bounds) (cdr bounds)))
-
-(use-package clang-format
-  :ensure t
-  :config
-  (setq clang-format-style-option "file"))
 
 ;; =======================================================================
 ;; CLOJURE / LISP
@@ -641,11 +670,27 @@
     ("y" sp-copy-sexp "copy-forward")
     ("Y" sp-backward-copy-sexp "copy-backward")
     ("s" sp-splice-sexp "splice")
-    ("t" sp-transpose-sexp "transpose"))
+    ("S" sp-split-sexp "split")
+    ("t" sp-transpose-sexp "transpose")
+    ("<" evil-cp-drag-backward "drag-back")
+    (">" evil-cp-drag-forward "drag-fwd"))
+
+  (add-hook 'smartparens-enabled-hook (lambda ()
+                                        (evil-define-key '(normal insert motion visual) 'local (kbd "C-e") 'hydra-smartparens/body)))
 
   (use-package evil-smartparens
     :ensure t
     :hook ((smartparens-enabled . evil-smartparens-mode))))
+
+(use-package evil-cleverparens
+  :ensure t
+  :hook ((smartparens-enabled . evil-cleverparens-mode))
+  :init (setq evil-cleverparens-use-additional-movement-keys nil
+              evil-cleverparens-use-additional-bindings nil)
+  :general
+  (:keymaps 'evil-cleverparens-mode-map
+   "M-a" 'evil-cp-insert-at-end-of-form
+   "M-i" 'evil-cp-insert-at-beginning-of-form))
 
 (use-package rainbow-delimiters
   :ensure t
@@ -755,21 +800,21 @@
 ;; KEYBINDINGS
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ;; =======================================================================
-;; Filesystem movement
-(evil-define-key '(normal motion) 'global (kbd "C-f") 'helm-find-files)
-(evil-define-key '(normal motion) 'global (kbd "C-b") 'helm-mini)
-(evil-define-key 'normal 'global (kbd "SPC d") 'helm-projectile-find-file)
-(evil-define-key '(normal motion) 'global (kbd "C-x l") 'helm-locate)
-(evil-define-key '(normal motion) 'global (kbd "C-x f") 'find-name-dired)
+;; Misc builtin stuff
+(general-def '(normal motion)
+  "C-x f" 'find-name-dired
+  "C-x p" 'list-processes
+  "SPC x d" 'xref-find-definitions
+  "SPC x r" 'xref-find-references
+  ",m" 'compile
+  "C-;" 'recompile)
 
 ;; Frames
-(evil-define-key '(normal motion) 'global (kbd "SPC f f") 'make-frame)
-(evil-define-key '(normal motion) 'global (kbd "SPC f x") 'delete-frame)
-
-;; Tabs
-;; (evil-define-key '(normal motion insert) 'global (kbd "M-h") 'elscreen-previous)
-;; (evil-define-key '(normal motion insert) 'global (kbd "M-l") 'evil-tabs-goto-tab)
-;; (evil-define-key '(normal motion) 'global (kbd ",t") 'robert-dired-in-new-tab)
+(general-def '(normal motion)
+  :prefix "SPC f"
+  :prefix-command 'frames-robert-prefix
+  "f" 'make-frame
+  "x" 'delete-frame)
 
 ;; Windows
 (general-def '(normal insert motion visual emacs) 'override
@@ -777,78 +822,65 @@
   "C-k" 'windmove-up
   "C-h" 'windmove-left
   "C-l" 'windmove-right)
-(evil-define-key '(normal motion) 'global (kbd ",q") 'robert-evil-tab-sensitive-quit)
-(evil-define-key '(normal motion) vterm-mode-map (kbd ",k") 'robert-kill-this-buffer-and-close-window)
-(evil-define-key '(normal motion) 'global (kbd "C-x C-k") 'robert-kill-this-buffer-and-close-window)
-(evil-define-key '(normal motion) 'global (kbd ",s") 'robert-split-horizontally-and-move-to-window)
-(evil-define-key '(normal motion) 'global (kbd ",v") 'robert-split-vertically-and-move-to-window)
-(evil-define-key '(normal motion) 'global (kbd "C-w") 'hydra-window/body)
+(general-def '(normal motion)
+  ",s" 'robert-split-horizontally-and-move-to-window
+  ",v" 'robert-split-vertically-and-move-to-window
+  "C-w" 'hydra-window/body
+  "C-x C-k" 'robert-kill-this-buffer-and-close-window)
 
 ;; Scrolling
-(evil-define-key '(normal motion) 'global "\C-d" 'evil-scroll-down)
-(evil-define-key '(normal motion) 'global "\C-u" 'evil-scroll-up)
+(general-def '(normal motion)
+  "C-d" 'evil-scroll-down
+  "C-u" 'evil-scroll-up)
 
 ;; Text movement/editing
-(evil-define-key '(normal motion) 'global (kbd "0") 'evil-first-non-blank)
-(evil-define-key 'insert 'global "\C-w" 'evil-delete-backward-word)
-(evil-define-key '(normal motion) 'global (kbd "'") 'evil-repeat-find-char-reverse)
-(evil-define-key 'normal 'global (kbd ",w") 'save-buffer)
-(evil-define-key 'normal 'global (kbd ",c") 'comment-or-uncomment-region)
+(general-def '(normal motion)
+  "0" 'evil-first-non-blank
+  "'" 'evil-repeat-find-char-reverse
+  ",w" 'save-buffer
+  ",c" 'comment-or-uncomment-region
+  ",h" 'robert-open-header-in-new-window
+  "SPC h" 'ff-find-other-file)
+(general-def 'insert
+  "C-w" 'evil-delete-backward-word)
 
 ;; Text search
-(evil-define-key '(normal motion) 'global (kbd "SPC s") 'helm-do-grep-ag)
-(evil-define-key '(normal motion) 'global (kbd "SPC S") 'helm-projectile-ag)
-(evil-define-key 'normal 'global (kbd "SPC /") 'helm-swoop)
+;; (evil-define-key 'normal 'global (kbd "SPC /") 'helm-swoop)
 
 ;; Ctags
-(evil-define-key '(normal motion) 'global (kbd "SPC t") 'projectile-find-tag)
-(evil-define-key '(normal motion) 'global (kbd "SPC x d") 'xref-find-definitions)
-(evil-define-key '(normal motion) 'global (kbd "SPC x r") 'xref-find-references)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC x d") 'xref-find-definitions)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC x r") 'xref-find-references)
 
 ;; Clang format
-(evil-define-key 'visual 'c++-mode-map (kbd "SPC c") 'clang-format-region)
-(evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'clang-format-region-at-point)
-
-;; Helm emacs
-(evil-define-key '(insert normal motion) 'global (kbd "M-x") 'helm-M-x)
-(evil-define-key '(normal motion) 'global (kbd "C-x b") 'helm-apropos)
+;; (evil-define-key 'visual 'c++-mode-map (kbd "SPC c") 'clang-format-region)
+;; (evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'clang-format-region-at-point)
 
 ;; Other helm bindings
-(evil-define-key '(normal motion) 'global (kbd "C-x k") 'helm-show-kill-ring)
-(evil-define-key '(normal motion) 'global (kbd "SPC r") 'helm-resume)
-(evil-define-key '(normal motion) 'global (kbd "SPC i") 'helm-imenu)
+;; (evil-define-key '(normal motion) 'global (kbd "C-x k") 'helm-show-kill-ring)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC r") 'helm-resume)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC i") 'helm-imenu)
 
 ;; Vterm
-(evil-define-key '(normal motion) 'global (kbd "SPC v") 'multi-vterm)
-(evil-define-key '(normal motion) 'global (kbd "SPC C-v") 'robert-vterm-horizontally-in-new-window)
-(evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC v") 'multi-vterm)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC C-v") 'robert-vterm-horizontally-in-new-window)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer)
 
 ;; Processes
-(evil-define-key '(normal motion) 'global (kbd "C-x p") 'list-processes)
+;; (evil-define-key '(normal motion) 'global (kbd "C-x p") 'list-processes)
 
 ;; Smartparens
-(evil-define-key  '(normal motion visual insert)  'global (kbd "C-e") 'hydra-smartparens/body)
+;; (evil-define-key  '(normal motion visual insert)  'global (kbd "C-e") 'hydra-smartparens/body)
 
 ;; Compilation
-(evil-define-key '(normal motion) 'global (kbd ",m") 'compile)
-(evil-define-key '(normal motion) 'global (kbd "C-;") 'recompile)
+;; (evil-define-key '(normal motion) 'global (kbd ",m") 'compile)
+;; (evil-define-key '(normal motion) 'global (kbd "C-;") 'recompile)
 
 ;; Documentation
-(evil-define-key '(normal motion) 'global (kbd "SPC m") 'helm-man-woman)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC m") 'helm-man-woman)
 
 ;; Source Code Movement
-(evil-define-key '(normal motion) 'global (kbd ",h") 'robert-open-header-in-new-window)
-(evil-define-key '(normal motion) 'global (kbd "SPC h") 'ff-find-other-file)
-
-;; Magit
-(global-set-key (kbd "C-x g") 'magit-status)
-
-
-;; Undefines
-(define-key global-map (kbd "C-x a") nil)
-(define-key global-map (kbd "C-x m") nil)
-(define-key global-map (kbd "C-4") nil)
-(define-key global-map (kbd "C-c M-g") nil)
+;; (evil-define-key '(normal motion) 'global (kbd ",h") 'robert-open-header-in-new-window)
+;; (evil-define-key '(normal motion) 'global (kbd "SPC h") 'ff-find-other-file)
 
 ;; =======================================================================
 ;; Generated!
@@ -861,7 +893,7 @@
  '(custom-safe-themes
    '("56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700" "4c7228157ba3a48c288ad8ef83c490b94cb29ef01236205e360c2c4db200bb18" "7b8f5bbdc7c316ee62f271acf6bcd0e0b8a272fdffe908f8c920b0ba34871d98" "d445c7b530713eac282ecdeea07a8fa59692c83045bf84dd112dd738c7bcad1d" default))
  '(package-selected-packages
-   '(general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
+   '(evil-cleverparens general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
