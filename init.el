@@ -7,11 +7,13 @@
 ;; C-x closely tied to emacs stuff
 ;; C-c major mode specific
 ;;
-;; TODO: convert bindings section to general
-;;  Fix up use-package for Clojure
-;;  Look into dired, woman, compilation bindings: need to be overridden?
+;; Todo
+;; - Tree-sitter: the default c++ font-lock is awful: is this any better?
+;; - Org mode: learn bindings or add new ones, figure out a proper workflow
+;; - lsp-ui: integrate docs, peek, imenu into workflow, keep what works
+;; - cleverparens: explore what movement ops can be integrated
+;; - rust mode / prolog mode usage and tooling
 ;; ==============================================================================
-
 ;; =======================================================================
 ;; PACKAGE INITIALIZATION
 ;; =======================================================================
@@ -155,7 +157,11 @@
                               ())
                              ("\\*compilation\\*"
                               (display-buffer-reuse-window display-buffer-pop-up-window)
-                              ())))
+                              ())
+                             ("\\*rustfmt\\*"
+                              (display-buffer-reuse-window display-buffer-in-side-window)
+                              ('side . 'bottom)
+                              ('window-height . 0.3))))
 (setq split-width-threshold 1)
 (setq split-height-threshold 1)
 
@@ -312,12 +318,12 @@
    "C-z" 'helm-select-action)
   (:keymaps 'helm-find-files-map
    "TAB" 'helm-execute-persistent-action
-   "C-<return>" 'helm-ff-switch-other-window
-   "M-<return>" 'helm-ff-switch-other-frame
+   "C-<return>" 'helm-ff-run-switch-other-window
+   "M-<return>" 'helm-ff-run-switch-other-frame
    "C-w" 'helm-find-files-up-one-level)
   (:keymaps 'helm-buffer-map
-   "C-<return>" 'helm-ff-switch-other-window
-   "M-<return>" 'helm-ff-switch-other-frame)
+   "C-<return>" 'helm-buffer-switch-other-window
+   "M-<return>" 'helm-buffer-switch-other-frame)
 
   :config
   (helm-mode 1)
@@ -381,9 +387,6 @@
 (use-package company
   :ensure t
   :demand t
-  :hook ((c++-mode . company-mode)
-         (clojure-mode . company-mode)
-         (cider-repl-mode . company-mode))
   :general
   (:keymaps 'company-active-map
    "RET" nil
@@ -411,20 +414,58 @@
 ;; =======================================================================
 (use-package lsp-mode
   :ensure t
+  :init
+  (setq lsp-keymap-prefix "C-c l")
   :hook
-  (c++-mode . lsp-deferred)
+  ((c++-mode . lsp-deferred)
+   (rust-mode . lsp-deferred))
   :general
   (:states 'normal
-   "SPC l" 'lsp-command-map)
+   "SPC l" '(:keymap lsp-command-map))
   :commands lsp
   :config
-  (setq lsp-clangd-binary-path "/usr/bin/clangd")
-  (setq lsp-clients-clangd-args '("--header-insertion=never"))
-  (setq lsp-enable-on-type-formatting nil))
-
-(use-package lsp-ui
-  :ensure t
-  :commands lsp-ui-mode)
+  (setq lsp-clangd-binary-path "/usr/bin/clangd"
+        lsp-clients-clangd-args '("--header-insertion=never")
+        lsp-enable-on-type-formatting nil)
+  (use-package helm-lsp :ensure t)
+  (use-package lsp-ui
+    :ensure t
+    :general
+    (:states '(normal motion)
+     "SPC e" 'lsp-ui-imenu)
+    (:states '(normal motion)
+     :prefix "SPC x"
+     :prefix-command 'xref-robert-prefix
+     "h" 'helm-lsp-workspace-symbol
+     "p" 'lsp-ui-peek-find-definitions
+     "e" 'lsp-ui-peek-find-references
+     "f" 'lsp-find-definition
+     "r" 'lsp-find-references
+     "i" 'lsp-find-implementation
+     "t" 'lsp-find-type-definition)
+    (:states '(normal motion)
+     :prefix "SPC d"
+     :prefix-command 'doc-robert-prefix
+     "g" 'lsp-ui-doc-glance
+     "d" 'lsp-ui-doc-show
+     "q" 'lsp-ui-doc-hide
+     "f" 'lsp-ui-doc-focus-frame)
+    :config
+    (setq lsp-ui-peek-enable t
+          lsp-ui-peek-always-show t)
+    (setq lsp-ui-doc-enable t
+          lsp-ui-doc-position 'at-point))
+  (use-package flycheck
+    :ensure t)
+  (use-package flycheck-rust
+    :ensure t)
+  ;; SPC d prefix above is preferred, but this at least allows it to
+  ;; be used in insert mode if desired
+  (general-def 'lsp-command-map
+    "h d" 'lsp-ui-doc-show
+    "h f" 'lsp-ui-doc-focus-frame
+    "h q" 'lsp-ui-doc-hide
+    "a h" 'helm-lsp-code-actions))
 
 ;; =======================================================================
 ;; HYDRA
@@ -570,6 +611,12 @@
           (evil . (telephone-line-airline-position-segment))))
   (telephone-line-mode 1))
 
+;; (setq major-mode-remap-alist
+;;       '((rust-mode . rust-ts-mode)))
+
+;; (setq treesit-language-source-alist
+;;       '((rust "https://github.com/tree-sitter/tree-sitter-rust")))
+
 ;; =======================================================================
 ;; -----------------------------------------------------------------------
 ;; PROGRAMMING LANGUAGE SUPPORT
@@ -673,7 +720,13 @@
     ("S" sp-split-sexp "split")
     ("t" sp-transpose-sexp "transpose")
     ("<" evil-cp-drag-backward "drag-back")
-    (">" evil-cp-drag-forward "drag-fwd"))
+    (">" evil-cp-drag-forward "drag-fwd")
+    ("M-a" evil-cp-insert-at-end-of-form "insert-end" :exit t)
+    ("M-i" evil-cp-insert-at-beginning-of-form "insert-beginning" :exit t)
+    ("M-o" evil-cp-open-below-form "open-below" :exit t)
+    ("M-O" evil-cp-open-above-form "open-above" :exit t)
+    ("M-k" evil-cp-beginning-of-defun "defun-begin")
+    ("M-j" evil-cp-end-of-defun "defun-end"))
 
   (add-hook 'smartparens-enabled-hook (lambda ()
                                         (evil-define-key '(normal insert motion visual) 'local (kbd "C-e") 'hydra-smartparens/body)))
@@ -708,6 +761,9 @@
   "C-c e" 'eval-last-sexp
   "C-c d" 'eval-defun
   "C-c f" 'eval-buffer)
+
+(add-hook 'emacs-lisp-mode-hook
+          (lambda () (modify-syntax-entry ?- "w" emacs-lisp-mode-syntax-table)))
 
 (use-package clojure-mode
   :ensure t
@@ -794,6 +850,26 @@
     (evil-define-key '(normal motion) 'local (kbd "RET") 'cider-repl-return))
 
   (add-hook 'cider-repl-mode-hook 'my-cider-repl-mode-stuff))
+
+;; =======================================================================
+;; RUST
+;; =======================================================================
+(use-package rust-mode
+  :ensure t
+  :mode ("\\.rs\\'" . rust-mode)
+  :config
+  (setq rust-format-on-save t))
+
+(use-package cargo
+  :ensure t
+  :hook (rust-mode . cargo-minor-mode))
+
+;; =======================================================================
+;; PROLOG
+;; =======================================================================
+(use-package prolog
+  :ensure t
+  :mode ("\\.pl\\'" . prolog-mode))
 
 ;; =======================================================================
 ;; ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -893,7 +969,7 @@
  '(custom-safe-themes
    '("56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700" "4c7228157ba3a48c288ad8ef83c490b94cb29ef01236205e360c2c4db200bb18" "7b8f5bbdc7c316ee62f271acf6bcd0e0b8a272fdffe908f8c920b0ba34871d98" "d445c7b530713eac282ecdeea07a8fa59692c83045bf84dd112dd738c7bcad1d" default))
  '(package-selected-packages
-   '(evil-cleverparens general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
+   '(helm-lsp flycheck-rust flycheck cargo evil-cleverparens general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
