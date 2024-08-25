@@ -24,6 +24,7 @@
 (require 'use-package)
 
 (use-package general :ensure t)
+(use-package doom-themes :ensure t)
 
 ;; =======================================================================
 ;; SCRIPTING CMDS
@@ -157,11 +158,7 @@
                               ())
                              ("\\*compilation\\*"
                               (display-buffer-reuse-window display-buffer-pop-up-window)
-                              ())
-                             ("\\*rustfmt\\*"
-                              (display-buffer-reuse-window display-buffer-in-side-window)
-                              ('side . 'bottom)
-                              ('window-height . 0.3))))
+                              ())))
 (setq split-width-threshold 1)
 (setq split-height-threshold 1)
 
@@ -281,6 +278,7 @@
 ;; Vim-like tabs support
 (use-package evil-tabs
   :ensure t
+  :demand t
   :config
   (evil-tabs-mode 1)
   :general
@@ -309,7 +307,7 @@
   (:states '(normal motion)
    "C-f" 'helm-find-files
    "C-b" 'helm-mini
-   "SPC i" 'helm-imenu
+   "SPC w" 'helm-imenu
    "SPC r" 'helm-resume
    "SPC s" 'helm-do-grep-ag
    "SPC m" 'helm-man-woman)
@@ -326,6 +324,7 @@
    "M-<return>" 'helm-buffer-switch-other-frame)
 
   :config
+  (setq helm-ff-edit-marked-files-fn 'helm-marked-files-in-dired)
   (helm-mode 1)
 
   ;; Set up locate db
@@ -338,7 +337,8 @@
   (setq helm-find-files-ignore-thing-at-point t))
 
 (use-package helm-xref
-  :ensure t)
+  :ensure t
+  :after helm)
 
 ;; Helm search in a file
 (use-package helm-swoop
@@ -374,7 +374,6 @@
 
 (use-package multi-vterm
   :ensure t
-  :after vterm
   :general
   (:states '(normal motion)
    "SPC v" 'multi-vterm
@@ -418,7 +417,8 @@
   (setq lsp-keymap-prefix "C-c l")
   :hook
   ((c++-mode . lsp-deferred)
-   (rust-mode . lsp-deferred))
+   (rust-mode . lsp-deferred)
+   (rust-ts-mode . lsp-deferred))
   :general
   (:states 'normal
    "SPC l" '(:keymap lsp-command-map))
@@ -513,7 +513,7 @@
   :ensure t
   :general
   (:states '(normal insert motion)
-   "C-p" 'projectile-command-map)
+   "C-p" '(:keymap projectile-command-map))
   :config
   (projectile-mode t)
 
@@ -611,11 +611,60 @@
           (evil . (telephone-line-airline-position-segment))))
   (telephone-line-mode 1))
 
+;; =======================================================================
+;; TREESITTER
+;; =======================================================================
 ;; (setq major-mode-remap-alist
 ;;       '((rust-mode . rust-ts-mode)))
 
-;; (setq treesit-language-source-alist
-;;       '((rust "https://github.com/tree-sitter/tree-sitter-rust")))
+(setq treesit-language-source-alist
+      '((rust "https://github.com/tree-sitter/tree-sitter-rust")))
+
+;; =======================================================================
+;; ORG MODE
+;; =======================================================================
+(use-package org
+  :ensure t
+  :config
+  (setq org-adapt-indentation t
+        org-goto-auto-isearch nil
+        org-cycle-separator-lines 1
+        org-log-done t
+        org-M-RET-may-split-line nil)
+
+  (defhydra hydra-orgmove ()
+    "orgmove"
+    ("j" org-next-visible-heading "next-heading")
+    ("k" org-previous-visible-heading "prev-heading")
+    ("f" org-forward-heading-same-level "forward-heading")
+    ("b" org-backward-heading-same-level "backward-heading")
+    ("u" outline-up-heading "up-heading")
+    ("h" org-promote-subtree "promote")
+    ("l" org-demote-subtree "demote")
+    ("M-k" org-move-subtree-up "move-up")
+    ("M-j" org-move-subtree-down "move-down"))
+  (evil-define-key '(normal insert motion) org-mode-map (kbd "C-e") 'hydra-orgmove/body)
+
+  (add-hook 'org-mode-hook (lambda ()
+                             (setq-local evil-move-beyond-eol t)))
+  (use-package org-modern
+    :ensure t
+    :hook (org-mode . org-modern-mode)))
+
+;; =======================================================================
+;; DIMINISH MODE
+;; Clean up minor modes from the mode line
+;; =======================================================================
+(use-package diminish
+  :ensure t
+  :demand t
+  :config
+  (diminish 'which-key-mode)
+  (diminish 'helm-mode)
+  (diminish 'company-mode)
+  (diminish 'yas-minor-mode)
+  (diminish 'eldoc-mode)
+  (diminish 'evil-collection-unimpaired-mode))
 
 ;; =======================================================================
 ;; -----------------------------------------------------------------------
@@ -684,13 +733,15 @@
   (add-hook 'c++-mode-hook #'modern-c++-font-lock-mode))
 
 ;; =======================================================================
-;; CLOJURE / LISP
+;; LISP SHARED
 ;; =======================================================================
 (use-package smartparens
   :ensure t
   :hook ((emacs-lisp-mode . smartparens-strict-mode)
          (clojure-mode . smartparens-strict-mode)
-         (cider-repl-mode . smartparens-strict-mode))
+         (cider-repl-mode . smartparens-strict-mode)
+         (scheme-mode . smartparens-strict-mode)
+         (geiser-repl-mode . smartparens-strict-mode))
   :config
   (sp-pair "'" nil :actions :rem)
   (sp-pair "(" nil :unless '(sp-in-string-p))
@@ -733,38 +784,74 @@
 
   (use-package evil-smartparens
     :ensure t
-    :hook ((smartparens-enabled . evil-smartparens-mode))))
+    :hook ((smartparens-enabled . evil-smartparens-mode)))
 
-(use-package evil-cleverparens
-  :ensure t
-  :hook ((smartparens-enabled . evil-cleverparens-mode))
-  :init (setq evil-cleverparens-use-additional-movement-keys nil
-              evil-cleverparens-use-additional-bindings nil)
-  :general
-  (:keymaps 'evil-cleverparens-mode-map
-   "M-a" 'evil-cp-insert-at-end-of-form
-   "M-i" 'evil-cp-insert-at-beginning-of-form))
+  (use-package evil-cleverparens
+    :ensure t
+    :hook ((smartparens-enabled . evil-cleverparens-mode))
+    :init (setq evil-cleverparens-use-additional-movement-keys nil
+                evil-cleverparens-use-additional-bindings nil)
+    :general
+    (:keymaps 'evil-cleverparens-mode-map
+     "M-a" 'evil-cp-insert-at-end-of-form
+     "M-i" 'evil-cp-insert-at-beginning-of-form
+     "M-j" 'evil-cp-end-of-defun
+     "M-k" 'evil-cp-beginning-of-defun
+     "M-o" 'evil-cp-open-below-form
+     "M-O" 'evil-cp-open-above-form)))
 
 (use-package rainbow-delimiters
   :ensure t
   :hook ((emacs-lisp-mode . rainbow-delimiters-mode)
          (clojure-mode . rainbow-delimiters-mode)
-         (cider-repl-mode . rainbow-delimiters-mode)))
+         (cider-repl-mode . rainbow-delimiters-mode)
+         (scheme-mode . rainbow-delimiters-mode)
+         (geiser-repl-mode . rainbow-delimiters-mode)))
 
 (use-package aggressive-indent
   :ensure t
   :hook ((emacs-lisp-mode . aggressive-indent-mode)
          (clojure-mode . aggressive-indent-mode)
-         (cider-repl-mode . aggressive-indent-mode)))
+         (cider-repl-mode . aggressive-indent-mode)
+         (scheme-mode . aggressive-indent-mode)
+         (geiser-repl-mode . aggressive-indent-mode)))
 
+;; =======================================================================
+;; ELISP
+;; =======================================================================
 (general-def 'emacs-lisp-mode-map
   "C-c e" 'eval-last-sexp
+  "C-c C-e" 'eval-last-sexp
   "C-c d" 'eval-defun
   "C-c f" 'eval-buffer)
 
 (add-hook 'emacs-lisp-mode-hook
           (lambda () (modify-syntax-entry ?- "w" emacs-lisp-mode-syntax-table)))
 
+;; =======================================================================
+;; SCHEME
+;; =======================================================================
+(use-package geiser
+  :ensure t
+  :hook ((scheme-mode . geiser-mode))
+  :config
+  (use-package geiser-guile :ensure t)
+
+  ;; Shortcuts
+  (general-def geiser-mode-map
+    :prefix "C-c"
+    "C-n" 'geiser-mode-switch-to-repl-and-enter
+    "C-k" 'geiser-eval-buffer
+    "C-e" 'geiser-eval-definition
+    "C-c" 'geiser-eval-interrupt
+    "g g" 'geiser-edit-symbol-at-point
+    ;; Different from other lisps, but Geiser doesn't allow the prefix map to be
+    ;; redefined
+    "d" 'geiser-doc-symbol-at-point))
+
+;; =======================================================================
+;; CLOJURE
+;; =======================================================================
 (use-package clojure-mode
   :ensure t
   :mode ("\\.clj\\'" "\\.cljs\\'" "\\.edn\\'")
@@ -791,7 +878,7 @@
   (general-def cider-mode-map
     :prefix "C-c g"
     :prefix-command 'find-thing-cider-robert
-    "d" 'cider-find-var
+    "g" 'cider-find-var
     "n" 'cider-find-ns
     "r" 'cider-find-resource
     "k" 'cider-find-keyword)
@@ -803,44 +890,54 @@
     "l" 'cider-eval-last-sexp
     "r" 'cider-eval-last-sexp-to-repl
     "p" 'cider-insert-last-sexp-in-repl
-    "t" 'cider-eval-defun-at-point
-    "a" 'cider-eval-sexp-at-point
-    "d" 'cider-debug-defun-at-point)
+    "d" 'cider-eval-defun-at-point
+    "e" 'cider-eval-sexp-at-point
+    "x" 'cider-debug-defun-at-point)
 
-  ;; Macros
+  ;; Macros C-c m
   (general-def cider-mode-map
     :prefix "C-c m"
     :prefix-command 'macro-cider-robert
     "1" 'cider-macroexpand-1
     "a" 'cider-macroexpand-all)
 
-  ;; Formatting
+  ;; Formatting C-c f
   (general-def cider-mode-map
     :prefix "C-c f"
     :prefix-command 'format-cider-robert
     "r" 'cider-format-region
     "f" 'cider-format-defun)
 
-  ;; Namespace
+  ;; Namespace C-c n
   (general-def cider-mode-map
     :prefix "C-c n"
     "b" 'cider-browse-ns
     "n" 'cider-repl-set-ns
     "f" 'cider-ns-refresh)
-  (define-key cider-mode-map (kbd "C-c C-n") 'cider-repl-set-ns) ;; Nice to not have to release Ctrl
 
-  ;; Docs
+  ;; Docs C-c d
   (general-def cider-doc-map
     "c" 'helm-cider-cheatsheet)
   (define-key cider-mode-map (kbd "C-c d") 'cider-doc-map)
+
+  ;; Shortcuts for very common subcommands
+  (general-def cider-mode-map
+    :prefix "C-c"
+    "C-n" 'cider-repl-set-ns
+    "C-e" 'cider-eval-defun-at-point
+    "C-k" 'cider-eval-buffer
+    "C-r" 'cljr-helm
+    "C-h" 'helm-cider-apropos
+    "C-d" 'cider-doc
+    "C-j" 'cider-jack-in
+    "C-f" 'cider-format-defun
+    "C-z" 'cider-switch-to-repl-buffer
+    "C-l" 'cider-ns-refresh)
 
   ;; Fix up REPL usage in Normal mode
   (define-key cider-repl-mode-map (kbd "<up>") 'cider-repl-backward-input)
   (define-key cider-repl-mode-map (kbd "<down>") 'cider-repl-forward-input)
   ;; We define RET -> cider-repl-return in cider-repl-mode-hooks for evil reasons
-
-  ;; Refactoring
-  (define-key clojure-mode-map (kbd "C-c C-r") 'cljr-helm)
 
   ;; Repl hooks
   (defun my-cider-repl-mode-stuff ()
@@ -858,11 +955,21 @@
   :ensure t
   :mode ("\\.rs\\'" . rust-mode)
   :config
-  (setq rust-format-on-save t))
+  (modify-syntax-entry ?_ "w" rust-mode-syntax-table)
+  (setq rust-format-on-save t
+        rust-format-show-buffer nil)
+  (add-to-list 'display-buffer-alist '("\\*rustfmt\\*"
+                                       (display-buffer-reuse-window display-buffer-in-side-window)
+                                       (side . bottom)
+                                       (window-height . 0.3))))
 
 (use-package cargo
   :ensure t
-  :hook (rust-mode . cargo-minor-mode))
+  :hook (rust-mode . cargo-minor-mode)
+  :config
+  (add-to-list 'display-buffer-alist '("\\*Cargo Build\\*"
+                                       (display-buffer-reuse-window display-buffer-pop-up-window)
+                                       (reusable-frames . t))))
 
 ;; =======================================================================
 ;; PROLOG
@@ -880,8 +987,7 @@
 (general-def '(normal motion)
   "C-x f" 'find-name-dired
   "C-x p" 'list-processes
-  "SPC x d" 'xref-find-definitions
-  "SPC x r" 'xref-find-references
+  "SPC x x" 'xref-find-definitions
   ",m" 'compile
   "C-;" 'recompile)
 
@@ -920,44 +1026,6 @@
 (general-def 'insert
   "C-w" 'evil-delete-backward-word)
 
-;; Text search
-;; (evil-define-key 'normal 'global (kbd "SPC /") 'helm-swoop)
-
-;; Ctags
-;; (evil-define-key '(normal motion) 'global (kbd "SPC x d") 'xref-find-definitions)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC x r") 'xref-find-references)
-
-;; Clang format
-;; (evil-define-key 'visual 'c++-mode-map (kbd "SPC c") 'clang-format-region)
-;; (evil-define-key 'normal 'c++-mode-map (kbd "SPC c") 'clang-format-region-at-point)
-
-;; Other helm bindings
-;; (evil-define-key '(normal motion) 'global (kbd "C-x k") 'helm-show-kill-ring)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC r") 'helm-resume)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC i") 'helm-imenu)
-
-;; Vterm
-;; (evil-define-key '(normal motion) 'global (kbd "SPC v") 'multi-vterm)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC C-v") 'robert-vterm-horizontally-in-new-window)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC ,") 'multi-vterm-rename-buffer)
-
-;; Processes
-;; (evil-define-key '(normal motion) 'global (kbd "C-x p") 'list-processes)
-
-;; Smartparens
-;; (evil-define-key  '(normal motion visual insert)  'global (kbd "C-e") 'hydra-smartparens/body)
-
-;; Compilation
-;; (evil-define-key '(normal motion) 'global (kbd ",m") 'compile)
-;; (evil-define-key '(normal motion) 'global (kbd "C-;") 'recompile)
-
-;; Documentation
-;; (evil-define-key '(normal motion) 'global (kbd "SPC m") 'helm-man-woman)
-
-;; Source Code Movement
-;; (evil-define-key '(normal motion) 'global (kbd ",h") 'robert-open-header-in-new-window)
-;; (evil-define-key '(normal motion) 'global (kbd "SPC h") 'ff-find-other-file)
-
 ;; =======================================================================
 ;; Generated!
 ;; =======================================================================
@@ -969,7 +1037,7 @@
  '(custom-safe-themes
    '("56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700" "4c7228157ba3a48c288ad8ef83c490b94cb29ef01236205e360c2c4db200bb18" "7b8f5bbdc7c316ee62f271acf6bcd0e0b8a272fdffe908f8c920b0ba34871d98" "d445c7b530713eac282ecdeea07a8fa59692c83045bf84dd112dd738c7bcad1d" default))
  '(package-selected-packages
-   '(helm-lsp flycheck-rust flycheck cargo evil-cleverparens general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
+   '(diminish org-modern org-mode geiser-guile geiser helm-lsp flycheck-rust flycheck cargo evil-cleverparens general doom-themes nord-theme lsp-ui lsp-mode undo-tree gruvbox-theme darcula-theme multi-vterm vterm cider ace-jump helm-cider-history helm-cider aggressive-indent hydra rainbow-delimiters evil-paredit clojure-mode helm-ag ag csv-mode evil-magit clang-format yasnippet modern-cpp-font-lock irony helm use-package evil)))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
